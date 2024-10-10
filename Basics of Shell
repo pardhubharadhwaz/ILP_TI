@@ -1,0 +1,118 @@
+ Basics of Shell
+
+ Introduction
+- The Shell is a text-based interface for command input, providing more control and flexibility than graphical interfaces.
+- Commands are entered directly, enabling users to access functions that may not be available through other means.
+
+ Shell Prompt
+- The shell prompt appears as `missing:~$`, indicating the current machine ("missing") and the current working directory ("~" for home). The `$` signifies a non-root user.
+
+ Basic Command Example
+- Command: `echo hello`
+  - Output: `hello`
+  - The shell executes the `echo` program with "hello" as an argument. Commands are parsed by splitting them by whitespace.
+
+ Quoting and Escaping
+- To handle arguments with spaces or special characters, use:
+  - Quotes: `"My Photos"` or `'My Photos'`
+  - Escape characters: `My\ Photos`
+
+ Finding Programs
+- The shell checks the `$PATH` environment variable to locate executable programs when a command is entered.
+
+ Command Example: `ls -l /home`
+- Lists files and directories in `/home` with detailed information.
+- Output includes:
+  - First character (`d` indicates a directory).
+  - Permissions (e.g., `rwxr-xr-x`):
+    - `r`: Read permission
+    - `w`: Write permission
+    - `x`: Execute permission
+  - Permissions are categorized into owner, group, and others.
+
+ Permission Rules
+- **Read (r)**: View contents.
+- **Write (w)**: Modify contents (only for owners).
+- **Execute (x)**: Enter the directory.
+
+ Redirection Basics
+- **Input Redirection (`<`)**: Directs input from a file.
+  - Example: `cat < hello.txt` reads and displays contents of `hello.txt`.
+  
+- **Output Redirection (`>`)**: Sends output to a file.
+  - Example: `echo hello > hello.txt` writes "hello" to `hello.txt` (overwrites if it exists).
+
+ Root User and `sudo`
+- **Root User**: Has unrestricted access to the system.
+- **Safety Note**: Avoid using root account continuously to prevent accidental system changes.
+  
+- **Using `sudo`**: 
+  - Allows running commands with root privileges without full root login.
+  - If encountering "permission denied," use `sudo` to elevate permissions.
+
+ Working with `/sys`
+- **sysfs File System**: Interfaces with kernel parameters as files.
+  - Example: Adjust screen brightness via `/sys/class/backlight/<device>/brightness`.
+
+ Practical Shell Commands
+1. **Create a File**:
+   ```bash
+   echo hello > hello.txt
+   ```
+   
+2. **Display File Content**:
+   ```bash
+   cat hello.txt
+   ```
+   
+3. **Read from a File**:
+   ```bash
+   cat < hello.txt
+   ```
+
+4. **Combine Input and Output Redirection**:
+   ```bash
+   cat < hello.txt > hello2.txt
+   ```
+
+5. **Check New File Content**:
+   ```bash
+   cat hello2.txt
+   ```
+
+ Modifying Permissions
+- **Change Permissions**:
+  ```bash
+  chmod <permissions> <file>
+  ```
+
+ Using Pipes (`|`)
+- Connect programs:
+  ```bash
+  ls -l / | tail -n1
+  ```
+- Redirect output to a file:
+  ```bash
+  ls -l / | tail -n1 > ls.txt
+  ```
+
+ Searching with `grep`
+- Search input for specific keywords.
+
+ Handling Permissions in `/sys`
+- **Echoing Values**:
+  ```bash
+  echo 500 > brightness
+  ```
+- If permission is denied:
+  ```bash
+  sudo echo 500 > brightness
+  ```
+
+- **Using `tee`** to write with elevated permissions:
+  ```bash
+  echo 1010 | sudo tee brightness
+  ```
+
+ Summary
+- The Shell is a powerful interface for executing commands, managing files, and handling system settings efficiently through a text-based approach. Understanding commands, permissions, redirection, and user roles (like root and sudo) is crucial for effective system management.
