@@ -1,0 +1,54 @@
+ Git Basics
+
+ What is Version Control?
+- **Version Control Systems (VCS)** track changes in a project, including metadata such as:
+  - Who made the change.
+  - When the change was made.
+- Useful for:
+  - Reviewing old code versions.
+  - Understanding the reasons behind changes through commit messages.
+  - Working on different features or bug fixes in parallel without conflicts.
+
+ Key Features of Git
+- **Conflict Resolution**: Helps manage and resolve conflicts when multiple users edit the same code.
+- **Git Bisect**: A powerful command that helps identify which commit introduced a bug by performing a binary search through the commit history.
+
+ Git Data Model
+- **Commits**: Use `git commit -a` to commit all changes made.
+- **Staging**: Use `git add` to add specific changes incrementally.
+  - Example Snapshot: 
+    ```
+    nodeV1 --> nodeV2 --> nodeF1 --> nodeF2
+    ```
+
+ Useful Git Commands
+- **Viewing History**: 
+  - `git log --all --graph --decorate` shows a visual representation of the commit history.
+- **Check Out Previous Versions**: 
+  - `git checkout <hash_of_previous_commit>` to revert to a previous commit.
+- **Diffing Changes**:
+  - `git diff` shows changes since the last snapshot.
+  - `git diff <file_name>` compares the current working directory to the last commit.
+
+ Branching and Merging
+- **Branching**: 
+  - `git branch` creates or lists branches.
+- **Merging**: 
+  - `git merge` combines branches.
+
+ Working with Remotes
+- **Add Remote**: 
+  - `git remote add <name> <url>` links your local repo to a remote repository.
+- **Push Changes**: 
+  - `git push <remote> <local branch>:<remote branch>` updates the remote with local changes.
+  - `git push origin master:master` creates or updates the master branch on the remote.
+- **Fetch and Pull**: 
+  - `git fetch` checks for changes in the remote repo.
+  - `git pull` fetches changes and merges them.
+
+ Bisecting Commits
+- **Finding the Commit that Broke Tests**:
+  - `git bisect` helps locate the first commit where a unit test started failing, reducing the need for manual checking.
+
+ Summary
+Git is a powerful version control system that allows for efficient tracking of changes, collaboration, and bug tracking. Understanding its core commands, branching and merging capabilities, and the use of remotes is essential for effective software development.
