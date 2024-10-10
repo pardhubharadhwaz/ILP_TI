@@ -1,0 +1,113 @@
+ Git - The Simple Guide
+
+ Git Quick Reference Guide
+
+**1. Creating a New Repository**
+
+To start a new project with Git, create a directory and initialize a Git repository:
+
+```bash
+mkdir my-repo          # Creates a new folder named my-repo
+cd my-repo             # Navigates into the new folder
+git init               # Initializes an empty Git repository
+```
+
+**2. Checking Out a Repository**
+
+Clone an existing repository to create a working copy:
+
+```bash
+git clone /path/to/repository             # Clone a local repository
+git clone username@host:/path/to/repository # Clone from a remote server
+```
+
+**3. Git Workflow Overview**
+
+Git maintains three key areas:
+
+- **Working Directory:** Where you have your actual files.
+- **Index (Staging Area):** Prepares your changes for commit.
+- **HEAD:** Points to the latest commit on your current branch.
+
+**4. Adding and Committing Changes**
+
+Once you make changes, you need to stage and commit them:
+
+```bash
+git add <filename>      # Add a specific file
+git add .               # Add all changes in the current directory
+git commit -m "Commit message" # Saves the staged changes
+```
+
+**5. Pushing Changes**
+
+Push committed changes to a remote repository:
+
+```bash
+git push origin master  # Change 'master' to your branch name if needed
+git remote add origin <server> # Connect your local repo to a remote
+```
+
+**6. Branching**
+
+Branches allow isolated development for new features or fixes:
+
+```bash
+git checkout -b feature_x   # Create and switch to a new branch
+git checkout master          # Switch back to the master branch
+git branch -d feature_x      # Delete a branch if it has been merged
+git push origin <branch>     # Upload the specified branch to remote
+```
+
+**7. Updating and Merging**
+
+Keep your repository up-to-date and combine changes:
+
+```bash
+git pull                     # Fetch and merge changes from remote
+git merge <branch>           # Merge another branch into your active branch
+```
+
+Handle merge conflicts by editing conflicting files and staging them:
+
+```bash
+git add <filename>           # Mark conflicts as resolved
+git diff <source_branch> <target_branch> # Preview changes before merging
+```
+
+**8. Tagging Releases**
+
+Mark specific points in your project history:
+
+```bash
+git tag 1.0.0 <commit_id>    # Create a new tag for a specific commit
+```
+
+**9. Viewing Repository History**
+
+Track changes using logs:
+
+```bash
+git log                      # Display the commit history
+git log --author=bob         # Filter logs by author
+git log --pretty=oneline     # One line per commit
+git log --graph --oneline --decorate --all # ASCII art tree
+git log --name-status        # Show files changed
+```
+
+**10. Replacing Local Changes**
+
+Restore previous states if needed:
+
+```bash
+git checkout -- <filename>   # Discard changes in a file
+git fetch origin              # Fetch latest changes from remote
+git reset --hard origin/master # Reset local branch to remote
+```
+
+**11. Useful Hints**
+
+- **Built-in Git GUI:** Launch with `gitk` to visualize your repository history.
+- **Enable colorful output:** `git config color.ui true` for readable color coding.
+- **Log on one line:** `git config format.pretty oneline` for concise log format.
+- **Interactive adding:** `git add -i` for staging changes with more control.
