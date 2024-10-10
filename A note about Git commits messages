@@ -1,0 +1,50 @@
+ Git Commit Message Best Practices
+
+ Summary of Best Practices
+
+**1. Format of Commit Messages:**
+
+- **Subject Line:**
+  - Keep it concise (50 characters or less).
+  - Capitalize the first letter.
+  - Use the imperative mood (e.g., "Fix bug" instead of "Fixed bug").
+
+- **Body:**
+  - Provide detailed information if necessary.
+  - Wrap text to about 72 characters for readability.
+  - Separate the subject from the body with a blank line.
+
+**2. Structure:**
+- Use bullet points if needed:
+  - Typically, use a hyphen or asterisk followed by a space.
+  - Include blank lines between bullet points for clarity.
+- Use hanging indents for readability in paragraphs.
+
+ Reasons for Formatting
+
+- **Readability in Tools:**
+  - Proper formatting ensures neat display in Git commands like `git log` and `git format-patch`.
+  - Wrapping at 72 characters prevents text overflow in terminal displays.
+
+- **Email Compatibility:**
+  - Good email etiquette suggests wrapping text to accommodate nested replies without overflow.
+
+ Tips for Editors
+
+- **Vim:**
+  - Set text width with `:set textwidth=72` in your commit message file.
+
+- **TextMate:**
+  - Adjust the "Wrap Column" under the view menu, and use `^Q` to rewrap paragraphs.
+  - Customize wrap columns with:
+    ```bash
+    $ defaults write com.macromates.textmate OakWrapColumns '( 40, 72, 78 )'
+    ```
+
+ Importance of Subject Line
+
+- The subject line is critical for various Git functions:
+  - Appears in the output of commands like `git log` and `git rebase`.
+  - Used in merge commit messages and changelogs.
+  - Displayed prominently in tools like GitHub.
+
