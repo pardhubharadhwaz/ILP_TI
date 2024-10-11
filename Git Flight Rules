@@ -1,0 +1,70 @@
+Git Flight Rules Overview
+
+Git Flight Rules are a set of guidelines that help teams use Git effectively and avoid common pitfalls. They provide a framework for collaboration, ensuring a smooth workflow in version control.
+
+ Key Points of Git Flight Rules
+
+1. Commit Often
+   - Key Point: Regular commits create a detailed history of changes, making it easier to track progress and revert if necessary.
+   - Example: Instead of making one large commit after completing a feature, commit every time you complete a logical chunk of work:
+     ```bash
+     git add file1.txt
+     git commit -m "Implement feature X"
+     git add file2.txt
+     git commit -m "Fix bug in feature X"
+     ```
+
+2. Use Meaningful Commit Messages
+   - Key Point: Clear and descriptive commit messages help team members understand the purpose of changes.
+   - Example: Instead of vague messages like "fix stuff," use:
+     ```bash
+     git commit -m "Fix user authentication issue when logging in"
+     ```
+
+3. Branching Strategies
+   - Key Point: Use branches to manage features, fixes, and experiments. This keeps the main branch stable.
+   - Example: Create a new branch for a feature:
+     ```bash
+     git checkout -b feature/new-feature
+     ```
+
+4. Merge Regularly
+   - Key Point: Regularly merge changes from the main branch into your feature branch to minimize conflicts.
+   - Example: While working on a feature branch, periodically pull from the main branch:
+     ```bash
+     git checkout main
+     git pull origin main
+     git checkout feature/new-feature
+     git merge main
+     ```
+
+5. Rebase for Clean History
+   - Key Point: Use `rebase` to keep a clean, linear project history. This can make it easier to understand the project’s evolution.
+   - Example: Before merging your feature branch, rebase it onto the latest main branch:
+     ```bash
+     git checkout feature/new-feature
+     git rebase main
+     ```
+
+6. Avoid Force Pushes
+   - Key Point: Force pushing can overwrite history and disrupt team workflows. Use it only when necessary and after communication with the team.
+   - Example: Instead of `git push --force`, consider using:
+     ```bash
+     git push --force-with-lease
+     ```
+   - This ensures you don't overwrite others' work.
+
+7. Backup Before Major Changes
+   - Key Point: Always back up your work before performing operations that might change history, like `reset` or `rebase`.
+   - Example: Create a temporary branch to back up your current work:
+     ```bash
+     git checkout -b backup/my-feature
+     ```
+
+8. Communicate Changes
+   - Key Point: Keep your team informed about significant changes, especially those that affect shared branches or important features.
+   - Example: Use team channels or commit messages to update on major changes.
+
+Conclusion
+
+Git Flight Rules help maintain a clean, efficient, and collaborative workflow. By adhering to these guidelines, teams can minimize conflicts, improve communication, and enhance project visibility.
