@@ -1,0 +1,58 @@
+ Shell Tools and Scripting
+
+ Basics of Shell Scripting
+- **Argument Splitting**: In shell scripting, spaces act as delimiters for argument splitting.
+- **Variable Assignment**: 
+  - Correct: `foo=bar`
+  - Incorrect: `foo = bar` (interpreted as executing `foo` with `=` as the first argument).
+  
+ Variable Usage
+- **Accessing Variables**: Use `$` to reference a variable's value.
+  - Example: 
+    ```bash
+    echo "Value is $foo"   Outputs: Value is bar
+    echo 'Value is $foo'   Outputs: Value is $foo (single quotes prevent expansion)
+    ```
+
+ Creating and Running Functions
+- **Defining a Function**:
+  ```bash
+  mcd() {
+      mkdir -p "$1"   Create directory
+      cd "$1"         Change to that directory
+  }
+  ```
+- **Using `$1`, `$2`, ...**:
+  - `$1`: First argument to the function.
+  - `$2`: Second argument, and so on.
+  - `$_`: Last command executed.
+  - `$0`: Name of the script being run.
+
+ Example Usage
+- Command: 
+  ```bash
+  mcd test
+  ```
+  - This creates a directory named "test" and navigates into it.
+
+ Bash Operators
+- **Logical OR**: `||` (executes the second command if the first fails).
+- **Logical AND**: `&&` (executes the second command only if the first succeeds).
+- **Semicolon**: `;` (executes commands sequentially, regardless of success or failure).
+
+ Special Variables
+- **`$0`**: Name of the current script.
+- **`$`**: Number of arguments passed to the script.
+- **`$$`**: Process ID of the current shell.
+- **`$@`**: All arguments passed to the script, useful for looping through them.
+
+ Finding Command Usage
+- **Manual Pages**: Use `man command` to access the manual for a specific command.
+  - Example: 
+    ```bash
+    man rm
+    ```
+    - This displays the behavior and options available for the `rm` command. 
+
+ Summary
+Shell scripting enables powerful command execution and automation. Understanding variable assignment, argument passing, special variables, and operators is essential for effective scripting and managing tasks in a Unix-like environment. Manual pages (`man`) are invaluable for learning command usage and options.

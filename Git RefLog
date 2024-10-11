@@ -1,0 +1,33 @@
+Here’s a summary of the additional Git commands you provided:
+
+### Git Commands Overview
+
+1. git reflog
+   - Displays a log of all actions performed in Git across all branches.
+   - Useful for recovering lost changes by identifying specific points in your history.
+   - Example: 
+     - View reflog: `git reflog`
+     - Reset to a previous state: `git reset HEAD@{index}`
+
+2. git commit --amend --no-edit
+   - Allows you to make small adjustments to the last commit without changing its message.
+   - Ideal for fixing minor mistakes in your commit.
+   - Example: `git commit --amend --no-edit`
+
+3. git commit --amend
+   - Changes the message of the last commit, helpful for improving clarity or correcting inaccuracies.
+   - Example: `git commit --amend`
+
+4. git reset HEAD~ --hard
+   - Removes the last commit from the current branch, useful for undoing accidental commits to the wrong branch.
+   - Example: `git reset HEAD~ --hard`
+
+5. git checkout [saved hash] -- path/to/file
+   - Reverts changes to a specific file by using a commit hash, allowing for selective undoing of changes without affecting the entire codebase.
+   - Example: `git checkout [saved hash] -- path/to/file`
+
+### Key Takeaways
+- git reflog is essential for tracking and recovering past states.
+- commit --amend variants help refine your commits.
+- reset commands are critical for undoing mistakes effectively.
+- checkout enables targeted file recovery.

@@ -1,0 +1,89 @@
+THE MAGIC TRICKS OF TESTING BY SANDI METZ
+Many developers express dissatisfaction with their tests, citing issues like slow performance and frequent breakage.
+Tests can hinder productivity, especially if they are slow and break frequently after small changes.
+Developers often feel conflicted about tests—they recognize their importance but are frustrated by their impact on workflow.
+Goals for Effective Unit Tests
+	Thoroughness: Tests should logically verify that objects behave correctly.
+	Stability: Tests should not break due to minor changes in implementation.
+	Speed: Quick feedback is essential to maintain productivity.
+	Minimalism: Aim for a small number of clear and effective tests.
+Understanding Unit Tests vs. Integration Tests
+	Unit Tests: Focus on individual objects and their behavior, acting like a "molecular" examination of code.
+	Integration Tests: Assess the entire system's behavior by checking interactions between various components.
+Clarity in Code Structure
+	Many applications resemble tangled spaghetti, complicating testing efforts.
+	Encourages visualizing the application's architecture to clarify testing strategies.
+Message Handling in Objects
+	Objects are viewed as black boxes, interacting through messages.
+	Three message origins:
+	Incoming: Messages received from other objects.
+	Outgoing: Messages sent to other objects.
+	Self-sent: Messages the object sends to itself.
+Types of Messages
+	Query Messages: No side effects; used for retrieving information.
+	Command Messages: Produce side effects but do not return useful values.
+Common Issues with Messages
+	The conflation of command and query messages can lead to hidden side effects, complicating debugging and testing.
+	Importance of distinguishing between command and query types for effective testing.
+Testing Strategies
+	Introduces a grid framework for testing based on message types and origins.
+	Provides a straightforward approach to filling out the grid to create effective tests.
+Example of Testing an Incoming Query
+	Uses a simple object (e.g., a bicycle) to demonstrate how to test a query message (e.g., calculating the diameter).
+	Shows a basic test implementation with assertions.
+
+The talk emphasizes that effective unit testing can be achieved by focusing on clarity, understanding message types, and simplifying tests. By adopting the right strategies, developers can improve productivity and enhance the maintainability of their code.
+Key Points
+
+⁃ Understanding State in Testing
+	The term "state" refers to the values returned from methods and the assertions made about those values.
+	It's crucial to focus on what is returned rather than internal states of objects.
+
+⁃ Testing Incoming Command Messages
+	When testing methods that alter an object's state (e.g., a setCog method in a gear class), assertions should verify the expected public side effects.
+	This approach ensures that tests validate the intended functionality without delving into implementation details.
+
+⁃ Redundancy in Testing
+	Avoiding redundant tests for private methods is essential, as they can complicate future code changes.
+	Redundant tests create a resistance to refactoring, as developers may fear breaking the tests tied to specific implementations.
+
+⁃ Testing Private Methods
+	It's generally advised not to create explicit tests for private methods; instead, focus on testing public interfaces.
+	If private methods are complex, minimal tests may be acceptable initially, but these should be reduced over time to prevent locking in current implementations.
+
+Outgoing Query Messages
+When testing outgoing query messages, avoid duplicating assertions already conducted on incoming messages.
+The responsibility for verifying return values rests with the receiver of incoming messages, not with the sender of outgoing messages.
+
+KEY TAKEAWAYS FOR TESTING STRATEGY
+	Emphasize testing interfaces over implementations to maintain flexibility.
+	Keep assertions focused on relevant outcomes to avoid unnecessary complexity.
+	Foster an environment that promotes clarity and simplicity in testing practices, allowing code to evolve smoothly.
+
+Simplicity in testing is not merely a best practice; it is a necessary approach for creating maintainable and adaptable software systems. By prioritizing clear interfaces, minimizing redundancy, and understanding the nature of different message types, developers can cultivate a more effective and collaborative development environment. [Speaker's Name]'s insights serve as a guide for navigating the complexities of testing, ultimately leading to a more efficient and responsive coding process.
+
+A comprehensive framework for understanding how to approach different types of messages in code, emphasizing clarity, efficiency, and maintaining a clean testing environment. Here’s a breakdown of the key points presented in their talk.
+
+
+• Testing Outgoing Command Messages
+	Definition: Outgoing command messages initiate actions with side effects that other components depend on.
+	Avoiding Direct Assertions: When testing these messages, avoid making assertions about distant side effects. Instead, focus on whether the command was sent correctly.
+	Use of Mocks: To test outgoing commands effectively, use mocks to set expectations on message sending. This approach isolates tests from distant dependencies and focuses on the immediate interaction.
+
+• Understanding Side Effects
+	Distinction: Side effects can impact other parts of the application. Testing should reflect this by ensuring the necessary commands are sent without tying the tests to specific outcomes from those side effects.
+	Integration vs. Unit Testing: Testing distant side effects can lead to integration tests masquerading as unit tests, which complicates code maintenance.
+
+• Simplicity in Testing
+	Focus on Interfaces: Tests should verify the interface's expected behavior, not the internal workings. This allows for flexibility in code refactoring without breaking tests.
+	Minimal Testing Strategy: A minimalist approach can cover the necessary aspects of functionality without creating excessive, redundant tests.
+
+• Using Mocks Effectively
+	Role of Mocks: Mocks act as test doubles to simulate the behavior of real objects. Ensure they adhere to the expected API.
+	Staying in Sync: Keep mocks updated with any changes to the real object’s API to avoid fragility in tests.
+
+• Final Thoughts on Testing Philosophy
+	Striving for Simplicity: Achieving simplicity in tests can transform complex testing scenarios into manageable ones.
+	Continuous Improvement: Embrace the journey toward better testing practices, as it may involve trial and error before achieving clarity and efficiency.
+Conclusion
+The course effectively highlights the necessity of simplicity and clarity in testing practices. By focusing on what matters—validating interactions and avoiding unnecessary complexity—developers can create a testing environment that is both efficient and adaptable. Embracing these principles not only enhances the quality of software but also fosters a culture of continuous improvement in testing methodologies.

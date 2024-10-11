@@ -1,0 +1,88 @@
+OVERVIEW OF CONTAINERS
+Containers offer a way to package applications with their dependencies, allowing them to run consistently across various environments.
+This lecture is not a comprehensive Docker tutorial but aims to clarify the concept of containers.
+Setting Up the Environment
+The instructor uses Windows 10 with WSL 2 (Windows Subsystem for Linux) and Docker installed.
+For other operating systems, equivalent installations are recommended.
+Hello World Example
+A simple "Hello World" C application is created and compiled using gcc with static linking.
+The executable is verified in a Linux environment (WSL).
+
+Problems with Traditional Setups
+	* Manual installation of software on a machine can lead to configuration issues, especially when managing multiple machines.
+	* Virtual machines (VMs) were introduced to solve this, but they are resource-heavy and contain duplicated operating system images.
+
+Understanding Virtual Machines vs. Containers
+	A VM runs a full OS, requiring significant resources (e.g., storage space).
+	Hypervisors (like VMware, Hyper-V) manage VMs, adding complexity and overhead.
+	Containers, managed by Docker, allow for running applications in isolated environments without the overhead of a full OS.
+
+Docker Architecture
+	Containers are lightweight and only include the necessary binaries and libraries for the application.
+	Docker daemon manages containers, making them smaller and more efficient.
+	Creating a Dockerfile
+	A Dockerfile is created to define how to build a Docker image:
+	dockerfile
+
+FROM scratch
+COPY hello-world /root/
+CMD ["/root/hello-world"]
+
+FROM scratch specifies starting from an empty image.
+COPY includes the executable in the image.
+CMD sets the command to run when the container starts.
+
+Building and Running the Container
+The Docker image is built using:
+	bash: docker build -t my-test:latest .
+	
+To run the container:
+	bash: docker run my-test:latest	
+The output "Hello, World!" confirms the application works.
+
+Using Base Images
+Instead of FROM scratch, using a base image like busybox simplifies the process:
+dockerfile
+
+FROM busybox
+	Building from busybox pulls the image if not available locally, demonstrating Docker’s ability to manage images efficiently.
+	Interactive Mode
+	To interact with the container, use:
+	bash : docker run -it busybox
+	This allows the user to execute commands within the container's environment.
+
+Docker containers provide a more efficient way to deploy applications compared to VMs.
+They encapsulate just what’s needed for the application to run, making them lightweight and manageable.
+This summary captures the essence of the lecture, focusing on the fundamental concepts, the practical setup, and the code examples used to demonstrate containerization with Docker.
+
+Persistence and Volatility of Containers
+	When a Docker container stops, its filesystem is wiped clean; any files created during its execution are lost unless specifically stored elsewhere.
+	Persistent data can be managed by mounting volumes to the container or using external databases.
+	
+Building on Base Images
+	You can build Docker images starting from more complex base images, such as ubuntu or nginx, to take advantage of pre-configured environments.
+	Each Docker image is layered, which means that changes are cached. This makes builds faster because unchanged layers can be reused.
+	
+Example with Nginx
+	An Nginx server can be run in a container with port mapping:
+	bash	docker run --rm --name nginx -p 81:80 nginx
+This maps port 81 on the host to port 80 in the container, allowing access via http://localhost:81.
+
+Handling Errors
+Errors during container operations can often be resolved by carefully reading the error messages, which provide clues for corrections (e.g., missing flags).
+Real-World Application: Podcast Website
+A real-world example is provided using a podcast website built with .NET, demonstrating how a Dockerfile can be used to compile code and run tests within the container environment.
+The Dockerfile for the podcast uses the Microsoft .NET SDK image as a base, illustrating how Docker can encapsulate the build process:
+dockerfile
+
+FROM mcr.microsoft.com/dotnet/sdk:latest
+WORKDIR /app
+COPY . .
+RUN dotnet build
+Efficiency and Speed
+Docker's layered architecture allows for quick builds and restarts since only the layers that have changed need to be rebuilt.
+The podcast site’s image is relatively small (e.g., 256 MB) due to the efficiency of Docker images.
+
+Conclusion:
+Containers, managed by Docker, provide a lightweight and efficient way to deploy applications.
+They enable consistent environments, quick deployment, and easy sharing of applications across different systems.a
