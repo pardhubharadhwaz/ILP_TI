@@ -1,0 +1,49 @@
+Functional programming is so called because its fundamental operation is the application of functions to arguments. A main program itself is written as a function that receives the program’s input as its argument and delivers the program’s output as its result. Typically the main function is defined in terms of other functions, which in turn are defined in terms of still more functions, until at the bottom level the functions are language primitives. All of these functions are much like ordinary mathematical functions. The special characteristics and advantages of functional programming are often summed up more or less as follows. Functional programs contain no assignment statements, so variables, once given a value, never change. More generally, functional programs contain no side-effects at all. A function call can have no effect other than to compute its result. This eliminates a major source of bugs, and also makes the order of execution irrelevant — since no side effect can change an expression’s value, it can be evaluated at any time. This relieves the programmer of the burden of prescribing the flow of control. Since expressions can be evaluated at any time, one can freely replace variables by their values and vice versa — that is, programs are “referentially transparent”. This freedom helps make functional programs more tractable mathematically than their conventional counterparts.
+Such a catalogue of “advantages” is all very well, but one must not be surprised if outsiders don’t take it too seriously. It says a lot about what functional programming isn’t (it has no assignment, no side effects, no flow of control) but
+not much about what it is. The functional programmer sounds rather like a mediæval monk, denying himself the pleasures of life in the hope that it will make him virtuous. To those more interested in material benefits, these “advantages” are totally unconvincing.
+Functional programmers argue that there are great material benefits — that a functional programmer is an order of magnitude more productive than his or her conventional counterpart, because functional programs are an order of magnitude shorter. Yet why should this be? The only faintly plausible reason one can suggest on the basis of these “advantages” is that conventional programs consist of 90% assignment statements, and in functional programs these can be omitted! This is plainly ridiculous. If omitting assignment statements brought such enormous benefits then Fortran programmers would have been doing it for twenty years. It is a logical impossibility to make a language more powerful by omitting features, no matter how bad they may be.
+Even a functional programmer should be dissatisfied with these so-called advantages, because they give no help in exploiting the power of functional languages. One cannot write a program that is particularly lacking in assignment statements, or particularly referentially transparent. There is no yardstick of program quality here, and therefore no ideal to aim at.
+
+Functional programming (FP) is important for several reasons:
+
+1. **Immutability**: Encourages immutable data structures, reducing side effects and making code easier to understand and maintain.
+
+2. **Higher-order functions**: Allows functions to be treated as first-class citizens, enabling more abstract and reusable code.
+
+3. **Declarative style**: Focuses on what to solve rather than how to solve it, leading to clearer and more concise code.
+
+4. **Concurrency**: Facilitates easier parallelization and concurrent programming due to lack of mutable state.
+
+5. **Testing and debugging**: Pure functions (output based only on input) are easier to test and reason about, leading to fewer bugs.
+
+6. **Modularity**: Promotes writing small, composable functions, enhancing code organization and reuse.
+
+7. **Recursion**: Often uses recursion instead of loops, which can simplify complex problems.
+
+8. **Cleaner code**: Leads to more readable and maintainable codebases, improving collaboration among developers.
+
+9. **State management**: Simplifies state management through concepts like monads, making complex flows easier to handle.
+
+10. **Adaptability**: Provides tools for handling changes in requirements with less friction, promoting flexibility in software design. 
+
+11. **Error handling**: Encourages the use of constructs like Option or Either types, providing clearer ways to manage errors without exceptions.
+
+12. **Lazy evaluation**: Supports the idea of delaying computation until necessary, which can improve performance and resource management.
+
+13. **Function composition**: Simplifies the creation of complex functions by combining simpler ones, enhancing modularity and readability.
+
+14. **Enhanced abstraction**: Promotes abstraction through algebraic data types and pattern matching, making it easier to express complex ideas concisely.
+
+15. **Domain-driven design**: Aligns well with concepts from domain-driven design, allowing for clearer models of complex domains.
+
+16. **Cross-language application**: Influences many languages (like JavaScript, Python, and Java) to adopt functional features, broadening its impact beyond purely functional languages.
+
+17. **Community and ecosystem**: A vibrant community around functional programming languages fosters collaboration and innovation, leading to better libraries and tools.
+
+18. **Performance optimizations**: Certain functional programming techniques can lead to optimizations that improve performance, such as tail call optimization.
+
+19. **Interoperability**: Functional principles can be applied alongside object-oriented programming, enabling hybrid approaches that take advantage of both paradigms.
+
+20. **Focus on data transformation**: Emphasizes transforming data through pipelines, which can lead to clearer data processing flows and enhance clarity in data-intensive applications.
+
+These notes highlight how functional programming not only improves the quality and maintainability of software but also adapts to the evolving landscape of programming and technology.
