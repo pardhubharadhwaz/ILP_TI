@@ -1,0 +1,442 @@
+### Elixir Intermediate Topics: Detailed Notes & Summary
+
+---
+
+## 1. **Custom Mix Tasks in Elixir**
+
+### **Overview**
+Mix is Elixir's build tool, commonly used for tasks like compilation, testing, and managing dependencies. Elixir allows you to create custom Mix tasks to automate processes that are specific to your application. This feature is useful for defining custom workflows or repetitive tasks that need to be run from the command line.
+
+### **Creating a Custom Mix Task**
+
+A custom Mix task is defined by creating a module that implements the `Mix.Task` behaviour. This module contains a `run/1` function that is executed when the task is called. The `run/1` function receives the arguments passed from the command line.
+
+#### **Steps to Create a Custom Mix Task:**
+
+1. **Create the task file:**  
+   Custom tasks are usually placed in the `lib/mix/tasks` directory of your project. For instance, if you want to create a task named `hello`, you would place the file `lib/mix/tasks/hello.ex`.
+
+2. **Define the module:**  
+   Inside the file, define a module with the name `Mix.Tasks.Hello` (the task name is converted to CamelCase).
+
+   ```elixir
+   defmodule Mix.Tasks.Hello do
+     use Mix.Task
+
+     @shortdoc "Says hello to the user"
+     def run(_args) do
+       IO.puts("Hello, Elixir!")
+     end
+   end
+   ```
+
+3. **Run the task:**  
+   You can run this task from the command line using the `mix` command:
+   ```bash
+   mix hello
+   ```
+
+### **Arguments and Options:**
+
+- You can pass arguments to your task when running it:
+  ```elixir
+  defmodule Mix.Tasks.Hello do
+    use Mix.Task
+
+    def run(args) do
+      IO.inspect(args)
+    end
+  end
+  ```
+  Running `mix hello arg1 arg2` will output `["arg1", "arg2"]`.
+
+- **Options:**  
+  You can define options for your tasks by using the `opt_parser` or by manually parsing the command-line arguments.
+
+### **Error Handling in Custom Mix Tasks:**
+- **Exiting with errors:**  
+  If an error occurs in your task, you can raise an exception, and Mix will automatically handle it by printing an error message.
+  ```elixir
+  defmodule Mix.Tasks.Hello do
+    use Mix.Task
+
+    def run(_args) do
+      raise "Oops, something went wrong!"
+    end
+  end
+  ```
+
+- **Error Message Customization:**  
+  You can use the `Mix.shell().error` to customize error output.
+
+### **Task Documentation:**
+- **@shortdoc:**  
+  This attribute defines a brief description of the task which can be used by Mix to show the task’s purpose when listing tasks (`mix help`).
+
+---
+
+## 2. **Erlang Interoperability in Elixir**
+
+### **Overview**
+Elixir is built on the Erlang Virtual Machine (BEAM), which means that Elixir can seamlessly interact with Erlang code. This interoperability is one of the most powerful features of Elixir, allowing developers to leverage the vast ecosystem of Erlang libraries and tools.
+
+### **Using Erlang Modules in Elixir**
+
+Elixir provides a straightforward way to call Erlang functions. You can call Erlang functions directly from Elixir without needing any special syntax, as long as the Erlang modules are loaded in the VM.
+
+#### **Example 1: Calling Erlang's `:math` Module**
+Elixir makes it easy to use Erlang’s built-in libraries.
+
+```elixir
+IO.puts(:math.sqrt(16))  # Calls the Erlang :math module to compute the square root
+```
+
+#### **Example 2: Calling an Erlang Function with Parameters**
+```elixir
+:crypto.hash(:sha256, "some string")
+```
+This code calls Erlang's `:crypto` module to hash a string using SHA-256.
+
+### **Erlang Terms and Elixir Types**
+
+- **Erlang Terms:** Elixir can exchange data with Erlang code, but it's important to remember that Elixir uses more structured data types like lists, maps, and tuples. However, when calling Erlang code, you’ll encounter Erlang-specific terms like `atoms`, `tuples`, and `binaries`.
+  
+- **Converting Between Elixir and Erlang Types:**
+  Elixir automatically converts certain types when interacting with Erlang. For example, Elixir maps are not directly compatible with Erlang maps, but Elixir provides functions to convert between the two.
+
+#### **Example of Converting Between Types:**
+```elixir
+# Elixir Map to Erlang Map
+map = %{a: 1, b: 2}
+:maps.to_list(map)
+```
+
+### **Calling Erlang’s Processes**
+
+Elixir can send messages to Erlang processes just like it does with its own processes. The underlying system (BEAM) ensures that communication is seamless between Elixir and Erlang processes.
+
+### **Using Erlang Libraries:**
+- Many Erlang libraries (such as `:mnesia` for database management or `:gen_server` for implementing stateful processes) can be used directly in Elixir.
+  
+Example with `:gen_server`:
+```elixir
+defmodule MyGenServer do
+  use GenServer
+
+  def init(_) do
+    {:ok, %{}}
+  end
+end
+```
+This is essentially an Elixir wrapper around an Erlang `gen_server` process.
+
+---
+
+## 3. **Error Handling in Elixir**
+
+### **Overview**
+Error handling is an essential part of any programming language, and Elixir uses a "let it crash" philosophy, where processes are allowed to fail and restart instead of handling errors by returning error values or exceptions.
+
+### **Error Handling in Elixir:**
+
+Elixir provides several mechanisms for handling errors:
+1. **Exceptions**
+2. **Try-Catch**
+3. **Monitoring & Supervision**
+
+### **1. Exceptions**
+
+- **Raising Errors:**
+  Elixir allows you to raise exceptions using the `raise` function.
+
+  ```elixir
+  raise "An error occurred"
+  ```
+
+- **Handling Exceptions:**
+  You can use `try/catch` for handling errors that arise during runtime.
+
+  ```elixir
+  try do
+    raise "Something went wrong"
+  catch
+    :error, message -> IO.puts("Caught error: #{message}")
+  end
+  ```
+
+- **Error Types:**
+  There are different types of errors, including:
+  - **RuntimeError:** This is the default exception raised by `raise/1`.
+  - **ArithmeticError:** Raised in cases of invalid mathematical operations.
+  - **ArgumentError:** Raised when a function receives invalid arguments.
+
+### **2. Try-Catch**
+
+The `try/catch` block allows you to trap errors and handle them gracefully. It's typically used for exceptions you expect during execution.
+
+```elixir
+try do
+  # Code that might raise an error
+  File.read!("nonexistent_file.txt")
+catch
+  :error, reason -> IO.puts("Caught error: #{reason}")
+end
+```
+
+- **try/after:**  
+  The `after` block is executed regardless of whether an exception was raised or not. It is typically used to clean up resources.
+
+```elixir
+try do
+  # Some risky operation
+  :ok
+after
+  IO.puts("This will always run")
+end
+```
+
+### **3. Monitoring & Supervision**
+
+- **Supervisors:**  
+  Elixir uses supervisors to monitor processes and restart them in case of failure. Supervisors are used to ensure the system remains stable despite errors.
+
+- **`Process.monitor/1` and `Process.demonitor/1`:**  
+  These functions allow a process to monitor another process and receive notifications if it crashes.
+
+---
+
+## 4. **Executables in Elixir**
+
+### **Overview**
+Elixir allows you to generate executables that can be distributed and run on machines without needing to install the entire Elixir runtime. This is especially useful for deploying Elixir applications as standalone applications.
+
+### **Creating an Executable:**
+
+- **Mix Releases:**  
+  Mix provides a mechanism called releases, which allows you to package your Elixir application along with all its dependencies into a single executable file.
+
+  ```bash
+  mix release
+  ```
+
+- **Configuring Releases:**  
+  You can customize your release by editing the `mix.exs` file to specify application configuration and release settings.
+
+```elixir
+defmodule MyApp.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :my_app,
+      version: "0.1.0",
+      deps: deps(),
+      releases: [
+        my_app: [
+          include_erts: true, # Include Erlang VM with your app
+          include_src: false  # Don't include source code
+        ]
+      ]
+    ]
+  end
+end
+```
+
+- **Building the Executable:**
+  After running `mix release`, Elixir packages the application into a self-contained directory with a binary that can be executed directly.
+
+### **Running the Executable:**
+After building the release, you can run your application like this:
+```bash
+./_build/prod/rel/my_app/bin/my_app start
+```
+
+---
+
+## 5. **Concurrency in Elixir**
+
+### **Overview**
+Elixir’s concurrency model is one of its standout features. It’s built on the Erlang actor model, where processes (lightweight threads) communicate via message passing. This allows Elixir applications to handle massive concurrency with ease.
+
+### **Concurrency with Processes:**
+
+### **Concurrency in Elixir (Continued)**
+
+Elixir’s concurrency model is based on **processes** that run concurrently and communicate via **message passing**. These processes are lightweight and extremely cheap to spawn, making Elixir highly suited for concurrent applications such as web servers, distributed systems, or real-time messaging applications.
+
+### **1. Process Creation in Elixir**
+
+In Elixir, processes are not operating system-level threads, but lightweight processes managed by the Erlang VM (BEAM). You can create a process using the `spawn/1` function, which creates a new process that will run the given function.
+
+#### Example: Spawning a Process
+```elixir
+spawn(fn -> IO.puts("This is running in a separate process") end)
+```
+
+The above code spawns a new process that prints a message. This process is lightweight, and multiple such processes can run concurrently without significant overhead.
+
+### **2. Sending Messages Between Processes**
+
+The primary way that Elixir processes communicate is by sending and receiving messages. Processes do not share state; instead, they pass messages asynchronously to each other.
+
+#### Example: Sending Messages
+```elixir
+pid = spawn(fn -> loop() end)
+
+# The process with PID 'pid' is now running the 'loop' function.
+# We send a message to the process.
+send(pid, {:hello, self()})
+
+defp loop() do
+  receive do
+    {:hello, sender_pid} ->
+      IO.puts("Hello from another process!")
+      send(sender_pid, :ok)  # Respond back to the sender
+      loop()  # Continue looping
+  end
+end
+```
+
+- `send(pid, message)`: Sends a message to the process identified by `pid`.
+- `receive do`: This is used to receive messages from the message queue of the current process.
+
+### **3. Process Isolation and Fault Tolerance**
+
+Each Elixir process is isolated from others, meaning it has its own memory space. If a process crashes, it does not affect other processes. This isolation contributes to the **fault-tolerant** nature of Elixir, a feature inherited from Erlang.
+
+#### **Let It Crash Philosophy**
+Elixir follows the "Let It Crash" philosophy. Instead of handling every error in the code, processes are allowed to fail and crash. This encourages simpler, more maintainable code, where the system can recover by restarting the failed processes.
+
+### **4. Supervisors and Process Monitoring**
+
+- **Supervisors** are special processes that are responsible for monitoring other processes (workers) and restarting them if they crash. A supervisor's job is to monitor its child processes and define how to handle failures (i.e., restart, ignore, or terminate).
+
+#### **Supervisor Example:**
+```elixir
+defmodule MySupervisor do
+  use Supervisor
+
+  def start_link(_) do
+    Supervisor.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def init(_) do
+    children = [
+      # Define worker processes here
+      {MyWorker, []}
+    ]
+
+    # Supervisor strategy: restart the child process if it crashes
+    Supervisor.init(children, strategy: :one_for_one)
+  end
+end
+```
+
+In the example, `MySupervisor` is a simple supervisor that starts and supervises a worker module (`MyWorker`). The `:one_for_one` strategy means that if a worker crashes, only that worker will be restarted.
+
+#### **Monitoring Processes:**
+Elixir provides functions like `Process.monitor/1` to monitor other processes. If a monitored process crashes, the monitoring process receives a message about the failure.
+
+```elixir
+pid = spawn(fn -> :ok end)
+monitor = Process.monitor(pid)
+
+# If the 'pid' process crashes, the monitor process will receive a message
+```
+
+### **5. Task Module for Concurrency**
+
+The `Task` module is another way to manage concurrent work in Elixir. It provides an abstraction for spawning processes and allows you to easily run tasks concurrently.
+
+#### Example: Running a Task Asynchronously
+```elixir
+task = Task.async(fn -> 
+  IO.puts("Performing work in a separate process")
+end)
+
+Task.await(task)  # Wait for the task to finish and retrieve its result
+```
+
+- `Task.async/1`: Starts a new task asynchronously.
+- `Task.await/1`: Blocks and waits for the task to finish and retrieves its result.
+
+Tasks are particularly useful when you need to execute operations concurrently and wait for the results in the calling process.
+
+### **6. GenServer for Stateful Processes**
+
+A **GenServer** (Generic Server) is a powerful abstraction that provides a way to manage state in a process and handle synchronous and asynchronous requests.
+
+#### Example: A Simple GenServer
+
+```elixir
+defmodule MyGenServer do
+  use GenServer
+
+  # Client API
+  def start_link(initial_state) do
+    GenServer.start_link(__MODULE__, initial_state, name: __MODULE__)
+  end
+
+  def set_value(value) do
+    GenServer.call(__MODULE__, {:set, value})
+  end
+
+  def get_value() do
+    GenServer.call(__MODULE__, :get)
+  end
+
+  # Server Callbacks
+  def init(initial_state) do
+    {:ok, initial_state}
+  end
+
+  def handle_call({:set, value}, _from, _state) do
+    {:reply, :ok, value}
+  end
+
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
+end
+```
+
+In this example:
+- **Client API:** Functions such as `set_value` and `get_value` provide an interface to interact with the GenServer.
+- **Server Callbacks:** The `handle_call` function is where you define how the server reacts to different messages. 
+
+### **7. Actor Model**
+
+The Elixir concurrency model is based on the **actor model**. Each process (actor) is independent, and communication happens exclusively through message passing. This model eliminates the need for locks or shared state, reducing the potential for race conditions.
+
+- **Processes are lightweight**: They are not OS threads, so creating and managing thousands or even millions of processes is efficient.
+- **Message Passing**: Processes interact with each other only by sending and receiving messages. This leads to better fault tolerance, as processes don't have direct access to each other's internal states.
+
+#### Example: Sending a Message to a Process
+```elixir
+pid = spawn(fn -> IO.puts("Waiting for a message") end)
+
+send(pid, :hello)
+```
+
+In the above example, we create a process that waits for a message (`:hello`). When a message is sent to it, the process will handle it (although in this case, it will just print the message).
+
+---
+
+## **Summary of Key Concepts**
+
+1. **Custom Mix Tasks:** 
+   Elixir allows you to define custom tasks using the `Mix.Task` module. These tasks can automate various functions and be executed from the command line, making them a powerful tool for building tools and managing workflows in your Elixir applications.
+
+2. **Erlang Interoperability:** 
+   Elixir runs on the Erlang VM (BEAM) and supports seamless interaction with Erlang libraries. This interoperability allows Elixir developers to leverage the vast ecosystem of Erlang's battle-tested libraries while writing code in Elixir’s more developer-friendly syntax.
+
+3. **Error Handling:**
+   Elixir follows a "let it crash" philosophy, where processes are allowed to fail and recover by being restarted. This promotes a more resilient and maintainable application structure, with supervisors playing a key role in monitoring and restarting processes that fail.
+
+4. **Executables:** 
+   Elixir applications can be compiled into releases, which package your code along with its dependencies and the Erlang runtime into an executable that can run independently, making it easy to distribute and deploy Elixir applications.
+
+5. **Concurrency:**
+   Elixir’s concurrency model is based on lightweight processes and message passing. Processes are isolated, and errors are contained within them, which contributes to Elixir’s robustness. Supervisors are used to manage and recover from failures. Tasks and GenServers provide structured ways to manage concurrent work and state in your applications.
+
+---
