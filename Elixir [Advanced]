@@ -880,4 +880,117 @@ Truly, umbrella projects in Elixir can be incredibly powerful as this splits eve
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+Introduction to @spec and @type in Elixir
+In Elixir, we find that, while writing code, we want the functions and types to be accessible for everyone, as well as work flawlessly. To this, @spec and @type help out! These are special annotations, or tags, available in Elixir that make a programmer describe the types of data their functions operate on, thus making the code understandable and free from errors.
 
+Let's break these concepts down step by step in a simple way so that it is easy to understand!
+
+What is @spec?
+
+@spec in Elixir is essentially a means of saying what types of things you expect with a function-what type of input and what type of return. It is literally like speaking to Elixir, "Hey, this is what I expect input to look like, and this is what I expect to get back as output."
+
+For example, let's assume we have the following function definition for addition. We can comment on what its specification is:
+
+@spec add(integer, integer) :: integer
+defp add(a, b) do
+  a + b
+end
+That is to say:
+The add function is supposed to take two integers.
+The result is an integer.
+Why Do We Use @spec?
+Elixir is a dynamic language, so it doesn't always try to verify the types of data. As such, you may call a function with wrong types; Elixir won't tell you until it runs the code and hits an error. The @spec annotation lets us detail what type of data the function expects, so that tools can check if we're doing it right.
+
+Now, assume you have a puzzle and @spec is the instructions on how to solve it. If the pieces do not fit then something fishy is cooking.
+ 
+Example with @spec
+
+@spec greet(String.t()) :: String.t()
+def greet(name) do
+  "Hello, #{name}!"
+end
+Translation:
+The greet function expects one String to be inputted (the name).
+This function returns a String as output (the greeting message).
+If we run greet(123), (passing an integer instead of a string) Elixir's tools might even warn us as it doesn't match the @spec.
+
+What is @type?
+While @spec is used to describe functions, @type is used to define new types that we can use in our code.
+
+Elixir doesn't have classes, like other languages might (such as Ruby or Java), but we can define a custom type to group things together so that our code reads cleaner and is easier to manage.
+
+For example, suppose we want to define a custom type that represents a point in 2D space with its x and y coordinates. Rather than writing x and y everywhere, we could define a type called Point as follows using @type:
+
+@type point :: %{x: integer, y: integer}
+Now, we can now use the type point wherever we refer to a point!
+
+Why @type?
+Once we write a program, sometimes there's still some work with complex data structures. These are more like containers that could hold many different pieces of information. A person's name, age, and address are all separate pieces of information. In our functions, if we want to use this information, we'll define a custom type for that person. That makes the code much neater and more understandable.
+
+We'd have to repeat, in effect, writing out the structure multiple times in such a code, that becomes unclear and error-prone easily.
+
+Using @type :
+Let's say we wanted to specify the type of rectangle as being custom type.
+```
+elixir
+Copy code
+@type rectangle :: %{width: integer, height: integer}
+Now we may make this code clearer, easier to read with this type. Here is how we might write a function to compute area of rectangle:
+
+@spec area(rectangle) :: integer
+ area(rect) =
+  rect.width * rect.height
+In the code below:
+ 
+area is a function that takes a rectangle as argument (a rectangle has width and height).
+area returns an integer, which is the area of the rectangle.
+By using the custom type rectangle, we clearly declare that the input must be an object that has width and height, which are integers.
+ Custom Types with Parameters
+We sometimes want our types to be more flexible. Instead of always having an integer for width and height, for example, we might want them to be any type. Elixir lets us do this with type parameters.
+
+For instance, we might define a point type where the x and y coordinates can be any type, not just integers:
+
+@type point(x, y) :: %{x: x, y: y}
+This is a generic type where x and y can be anything. Later, when we use this type, we specify the actual type we want:
+
+@type integer_point :: point(integer, integer)
+@type float_point :: point(float, float)
+This way, we can have different types of points: integer points and floating-point points!
+
+Combining @spec and @type
+Now let's combine them: @spec and @type. Say we want to write a function that takes a rectangle (with our own @type) as input and returns its area:
+
+defmodule Geometry do
+  @type rectangle :: %{width: integer, height: integer}
+
+  @spec area(rectangle) :: integer
+  def area(rect) do
+    rect.width * rect.height
+  end
+end
+Here:
+
+The @type says what a rectangle should look like—it must have width and height).
+The @spec describes the area function, saying it takes a rectangle and returns an integer.
+This makes the code easier to understand because anyone reading it knows exactly what the input and output should be.
+
+@typedoc: Documentation of Types
+We can use @typedoc to describe our custom types, just like how we use @doc to describe functions.
+
+For instance,
+
+defmodule Geometry do
+  @typedoc "Based on a description "
+  Represents a rectangle with `width` and `height` properties.
+" "
+ @type rectangle :: %{width: integer, height: integer}
+end
+The @typedoc annotation is a description for your custom type. It will help fellow developers to understand what the type represents and how they should use it.
+
+Conclusion
+In essence, here's quick overview of @spec and @type:
+
+@spec helps us describe the input and output of a function. It's kind of like giving instructions on how one must use the function.
+@type allows us to introduce user-defined types so we don't have to write out labor-intensive data structures over and over again. Our code is cleaner, more understandable.
+@typedoc is used as documentation for the user-defined types since we would need @doc for functions.
+Together, with these tools, we can write Elixir code that is better, better understandable, less prone to errors, and more maintainable!
