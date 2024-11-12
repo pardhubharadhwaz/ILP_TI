@@ -413,3 +413,298 @@ These tools enable us to build quite high concurrent, fault-tolerant application
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+What is Metaprogramming?
+You may think of metaprogramming as that magic wand for your code. You are writing some "special" code; that "special" code writes or changes the regular code in running time.
+
+Suppose you are building a toy robot, and normally you would instruct the robot to do each task one by one. However, with metaprogramming, you can program the robot to give itself instructions on what to do when it needs it instead of teaching it every time. Thus, it can somehow figure some tasks on its own and save you time.
+
+The Key Elements of Metaprogramming in Elixir
+Some key tools Elixir provides us for metaprogramming are:
+  --Quote
+  --Unquote
+  --Macros
+  --Debugging Tools
+  --Private Macros
+  --Macro Hygiene
+  --Binding Variables
+Let's go through them one by one!
+1. Quote
+The first thing about metaprogramming is understanding how Elixir sees your code "under the hood". When Elixir runs your code, it doesn't run instructions like IO.puts("Hello") in situ. It rather translates them into something called an Abstract Syntax Tree or AST. That's somehow like a tree where every branch is representing some part of your code. You might think of an AST as being the structure or blueprint of your code.
+
+With Elixir, we can look into this blueprint using the quote function. Here is how it goes:
+
+quote do: 42
+# This returns 42
+quote do: "Hello"
+# This returns "Hello"
+quote do: 1 + 2
+# This returns {:+, [context: Elixir, import: Kernel], [1, 2]}
+When we quote with do:. we get back the internal structure of what Elixir uses to understand what the code does.
+
+Simple values like 42 or "Hello" remain the same.
+Phrases like 1 + 2 turn into a tuple that Elixir then interprets.
+2. Unquote
+Now that we can look at the blueprint (AST), how do we actually modify it? That's where unquote comes in. unquote allows us to insert actual values or expressions back into our quoted code. It "unlocks" or "unwraps" the values and injects them into the code.
+Here's an example:
+
+denominator = 2
+quote do: divide(42, denominator)
+# This returns: {:divide, [], [42, {:denominator, [], Elixir}]}
+
+quote do
+  divide(42, unquote(denominator))
+# This returns: {:divide, [], [42, 2]}
+
+In the first example, denominator is quoted so that Elixir puts the variable name :denominator in the AST. But in the second example, we use unquote(denominator) to inject the value 2 into the AST directly, so it becomes 42, 2.
+
+3. Macros
+Macros Okay, so macros. A macro is somewhat similar to a special kind of function in Elixir, but this function will generate some code for us instead of just running some code. Any code in the macro will replace the whole macro call completely at compiletime and not at runtime.
+
+This is an example of creating your own macro to create an unless statement, which does not exist on Elixir by default:
+
+defmodule OurMacro do
+  defmacro unless(expr, do: block) do
+    quote do
+      if !unquote(expr), do: unquote(block)
+    end
+  end
+end
+Using the unless macro, you can now do this:
+
+require OurMacro
+OurMacro.unless true, do: "Hi"
+# This outputs nothing
+
+
+OurMacro.unless false, do: "Hi"
+# This prints "Hello"
+The macro replaces OurMacro.unless with an if statement. It tests whether the condition is not true (!expr), and if it's false, it runs the block of code inside the do part.
+
+4. Debugging Macros
+Writing macros can be tricky, especially when you have a lot of quoted code. How do you understand what the macro is doing? Elixir has some debugging tools that can help:
+
+Macro.to_string/2 Convert quoted code to a string. It is like an internal representation of that macro translated into normal code which you may read.
+
+
+Macro.to_string(quote do: foo.bar(1, 2, 3))
+# Returns: "foo.bar(1, 2, 3)"
+Macro.expand/2 and Macro.expand_once/2: Let you see how a macro is expanded to actual code. expand/2 will expand the macro multiple times if that is needed but expand_once/2 will expand the macro only once.
+
+elixir
+Paste
+quoted = quote do: OurMacro.unless(true, do: "Hi")
+Macro.expand_once(quoted, __ENV__)
+# Expands to: if !true do
+  #             "Hi"
+  #           end
+5. Private Macros
+And in Elixir, we can also define private macros. Private macros are those macros that can be used only within the module they are defined in. They serve as kind of secret tools you wouldn't want the outside world to access.
+
+To define a private macro, we use defmacrop:
+
+defmodule MyModule do
+  defmacrop private_macro do
+    IO.puts "This is private!"
+  end
+end
+You can't use this private macro from anything outside your MyModule module.
+
+6. Macro Hygiene
+There is a pretty important concept when using macros that you should be aware of: macro hygiene. Macro hygiene simply means the code in a macro doesn't accidentally interfere with code from outside it.
+
+By default, Elixir macros are "hygienic." This means variables inside the macro will not inadvertently overwrite or collide with variables outside the macro.
+
+Here's how that works:
+
+defmodule Example do
+defmacro hygienic do
+  quote do: val = -1
+  end
+end
+
+val = 42
+Example.hygienic
+IO.puts(val)
+# Outputs: 42 (no conflict)
+But if you need a macro to update a variable in the caller's context, you can use var!/2 to make it unhygienic. In other words, the macro will have access to variables outside of it.
+
+defmodule Example do
+  defmacro unhygienic do
+    quote do: var!(val) = -1
+end
+end
+
+
+val = 42
+Example.unhygienic
+IO.puts(val)
+# Outputs: -1 (the value of val is changed by the macro)
+7. Binding Variables
+Finally, let's discuss binding variables in macros. Normally, when we use unquote inside a macro, the expression inside it is re-evaluated every time it's used. This can be problematic, especially if you're working with something that changes (like the current time).
+
+This is a solution we could use binding. When we "bind" a variable, it's evaluated only once, so this can help avoid unwanted re-evaluation.
+
+Here's a simple example demonstrating how a macro might use binding:
+
+  defmodule Example do
+    defmacro double_puts(expr) do
+      quote bind_quoted: [expr: expr] do
+        IO.puts(expr)
+        IO.puts(expr)
+      end
+    end
+  end
+
+require Example
+Example.double_puts(:os.system_time)
+# Outputs the same time now
+We use bind_quoted to ensure that expr is evaluated but once, no matter how many times it is used.
+
+8. Private Macros
+We touched on private macros above, but let's go a bit more in-depth on why and when you'd use them.
+
+What are Private Macros?
+
+Private macros are just like regular macros but can only be used within the module where they're defined. This is handy for organizing code that you don't want to expose publicly, or for internal utilities that only really make sense in the context of that module.
+
+It's almost as if defining a private macro is giving yourself a "secret helper" only accessible within your module and not to other parts of your program.
+
+Why Would I Want to Use Private Macros?
+
+Just imagine that you have a really huge module with lots of functionality, and somewhere inside that module you need to perform some operation multiple times. You could simply repeat that in all these places; however, with macros you can create a private macro in order to be able to repeat all that work. Because private macros aren't accessible from the outside world, you don't pollute your clean, encapsulated code.
+
+Example of usage of a private macro:
+
+defmodule MyModule do
+# Private macro
+  defmacrop calculate(a, b) do
+    quote do
+      unquote(a) + unquote(b)
+    end
+  end
+
+end
+
+  def public_function do
+    result = calculate(5, 10)  # This is allowed because calculate is defined inside the module
+    IO.puts(result)
+  end
+end
+In this example, the calculate macro is only available within MyModule. If you call MyModule.calculate(5, 10) outside of the module, an error will be raised.
+
+How to Define a Private Macro:
+
+You define a private macro by using defmacrop instead of defmacro. Private macros can only be called within the same module where they are defined. You will get an error if you try to call them outside. elixir
+
+defmodule MyModule do
+defmacrop private_macro do
+    IO.puts("This is a private macro!")
+  end
+end
+9. Macro Hygiene
+Macro hygiene is another really important concept to know, it helps prevent accidental variable conflicts between the variables inside your macros with the ones in the code where the macro is being used.
+What is Macro Hygiene?
+
+Macro hygiene ensures that the variables inside your macro do not conflict with variables in the caller's code. It maintains the scope of the macro's variables separate from the caller's code. This is important because, if you do not hygienic, you could inadvertently write over or interfere with a variable in the caller's context.
+
+Why Do We Need Macro Hygiene?
+
+If hygiene was not present, there would always be a chance that a modification or disruption of the variable changed could occur in the calling context. For example, suppose you declare a variable within a macro but haven't scoped it nicely-you may unknowingly overwrite some variable outside of that macro.
+
+How does Elixir handle macro hygiene?
+
+For hygiene macros, Elixir supports a sane default: the variables used within a macro won't affect the variables in the context where the macro is invoked. This prevents such nasty variable overwrites accidentally.
+
+Here is an example that shows hygienic macros:
+
+defmodule MyModule do
+  defmacro example do
+    quote do
+      val = 5
+      IO.puts(val)
+    end
+  end
+end
+end
+end
+
+val = 10
+MyModule.example
+# This prints 5, not 10, because the macro is hygienic
+Despite having a variable val = 10 in the caller's code, the macro does not replace it. That is because the val within the macro is isolated and prints out 5 since that is what it had defined in the macro.
+
+What If You Need to Bypass Macro Hygiene?
+
+Sometimes you will want a macro that must pull something out of the callers context to be passed as an argument. Then the only thing to do is declare a macro non-hygienic, and you can use var!/2. This means that your macro will modify the variable of its caller directly.
+
+Here's an example for using non-hygienic macros:
+
+defmodule MyModule do
+  defmacro unhygienic do
+    quote do
+      var!(val) = 5  # This directly modifies the callers' `val
+end
+end
+val = 10
+MyModule.unhygienic
+IO.puts(val)  # This prints 5 because the macro modified the caller's `val`
+Note: Shun non-hygienic macros. They may lead to bugs and puzzling, so be using them very cautiously and just where strictly necessary.
+10. Binding Variables in Macros
+Use of unquote in macros creates a condition where something will be evaluated more than once- a shocking behavior. This may occur if the same expression is unquoted at different places. For example, if something has to do with the invocation of a function or a dynamic value such as system time, then you will result in different things since it happens to be evaluated more than once.
+
+The Trouble with Multiple Evaluations:
+Let's take a simple example: we need to print the same expression in two places:
+
+defmodule Example do
+  defmacro double_puts(expr) do
+    quote do
+      IO.puts(unquote(expr))
+      IO.puts(unquote(expr))  # This re-evaluates expr
+    end
+  end
+end
+
+require Example
+Example.double_puts(:os.system_time)
+
+If you run this code, you may get two different times printed because the expression :os.system_time is evaluated twice.
+
+How to Fix Re-Evaluation Using Binding:
+To prevent an expression from being re-evaluated, we can use variable binding. This technique allows us to pass variables into the quoted code, ensuring that they are evaluated only once. You do this using the bind_quoted option in the quote function.
+
+Here’s how binding works:
+
+defmodule Example do
+  defmacro double_puts(expr) do
+    quote bind_quoted: [expr: expr] do
+IO.puts(expr)  # expr is only evaluated once
+      IO.puts(expr)  # expr is not re-evaluated
+    end
+  end
+end
+
+require Example
+Example.double_puts(:os.system_time)
+Now, even though expr is used twice, it's only evaluated once, and you'll get the same value printed both times. This eliminates the problem of re-evaluation.
+
+11. Summary: Best Practices for Metaprogramming in Elixir
+A powerful tool as metaprogramming is, yet it brings its own challenges. Here are some best practices on how to use metaprogramming effectively.
+
+Use Metaprogramming Sparingly: While metaprogramming can save time and reduce repetition, it may make your code harder to understand. Thus, use it only when it really simplifies or makes your code more flexible.
+
+Macro Hygiene is Your Friend: By default, Elixir macros are hygienic, which is a good thing. Avoid bypassing hygiene unless you have a really good reason, since non-hygienic macros can cause bugs or unintended behavior.
+
+Avoid Repeated Evaluations : When writing macros that contain expressions that may change over time (like :os.system_time), use binding to make sure that those expressions are only evaluated once.
+
+Private Macros for Internal Logic: When you want helper macros whose executions really shouldn't be visible from the outside your module, define some private macros using defmacrop. Your code, in this case, stays clean and encapsulated.
+
+Always Document Your Macros : Since macros change code at compile time, it's very easy for others-or even you later-forget what a given macro actually does. Make sure to document your macros nicely.
+
+Conclusion
+Metaprogramming in Elixir is an awesome flexible feature to write a code that generates or modifies other code. Knowledge of quote, unquote, macros, debugging tools, macro hygiene and binding variables will assure you full utilization of metaprogramming capabilities in Elixir.
+
+However, with great power comes great responsibility! Wise use of metaprogramming techniques should ensure the resulting code remains as maintainable and understandable as possible. Remember these suggestions: you'll be able to create more flexible, dynamic, and clean Elixir programs.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
