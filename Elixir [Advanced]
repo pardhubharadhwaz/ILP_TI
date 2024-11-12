@@ -1,0 +1,415 @@
+``OTP(Open Telecom Platform) Concurrency``:
+
+Your room has a big toy box. Assume that the toys are robots. Robots are there with lots of capabilities. There are robots who can walk, talk, play musical instruments, and so on. Each of them does things here peacefully without disturbing others.
+
+OTP is as if the special set of rules and tools that helps these robots (or toys) work together in an organized way. Concurrency means that when one robot is doing something, other robots can also do their jobs at the same time, and they do not get in each other's way!
+
+Concurrency in Elixir is the way to ensure different tasks-for example, checking emails, sending messages or playing games-might all happen at once without waiting for each other. OTP gives us the rules for organizing all these tasks properly.
+
+GenServer: The Boss of the Robots
+Now, in your toy box, one robot runs around to organize and tell other robots what to do. Such a thing is like a GenServer.
+
+A GenServer is a helper which listens to requests, performs some work, and then sends back the result. It is pretty much a robot manager which talks to the rest of the robots so that everyone knows what needs to be done.
+
+Imagine that when you ask, say, a question such as "What's the weather today?" instead of asking all of your robots in the toy box, you ask the GenServer, and off it goes to get the answer and gives it back to you. That is the role of the GenServer-to handle the communication.
+Well, the GenServer is a module in Elixir that makes certain programs don't fight over which job gets done-checking the weather, posting a message, playing music.
+
+defmodule SimpleQueue do
+  use GenServer
+
+  @doc """
+  Start our queue and link it.
+  This is a helper function
+  """
+  def start_link(state \\ []) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+  end
+
+  @doc """
+  GenServer.init/1 callback
+  """
+  def init(state), do: {:ok, state}
+end
+Key Points:
+GenServer.start_link/3 starts the GenServer and links it to the current process. The state (like a queue or list) is passed to the server when it starts.
+init/1 is a callback that sets up the initial state. Here, the state is an empty list [] or any state we pass when starting the GenServer.
+
+Synchronous Functions: Taking Turns
+
+The original asynchronous functions can be likened to line waiting. If you want to ask the GenServer something, you essentially queue up a request to the GenServer and wait until it returns the answer to your question.
+For example, imagine you ask a GenServer, "Do you know what time is?" You wait for the GenServer to get its time and then to give that back to you. You can't ask any other questions until you get your answer. It's like waiting your turn to speak!
+
+Important Note: Synchronous functions are ask-wait-get.
+
+defmodule SimpleQueue do
+  use GenServer
+
+  @doc """
+  GenServer.init/1 callback
+  """
+  def init(state), do: {:ok, state}
+
+  @doc """
+  GenServer.handle_call/3 callback
+  """
+  def handle_call(:dequeue, _from, [value | state]) do
+    {:reply, value, state} # Reply with the first value and update the state
+  end
+
+  def handle_call(:dequeue, _from, []), do: {:reply, nil, []} # If the queue is empty, reply with nil
+
+  def handle_call(:queue, _from, state), do: {:reply, state, state} # Just reply with the current queue
+
+  ### Client API / Helper functions
+
+  def start_link(state \\ []) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+  end
+
+  def queue, do: GenServer.call(__MODULE__, :queue) # Call to get the current queue
+  def dequeue, do: GenServer.call(__MODULE__, :dequeue) # Call to remove a value from the queue
+end
+Key Points:
+handle_call/3 processes a synchronous request. It must always reply with a tuple like {:reply, response, new_state}.
+The queue starts with some values (e.g., [1, 2, 3]), and you can dequeue values or check the current queue state.
+
+Example Usage:
+
+SimpleQueue.start_link([1, 2, 3])
+SimpleQueue.dequeue   # This will return 1 and remove it from the queue
+SimpleQueue.dequeue   # This will return 2 and remove it from the queue
+SimpleQueue.queue     # This will return the current queue: [3]
+
+Asynchronous Functions: Doing Other Things While Waiting
+The main difference is an asynchronous function does not have to wait for the GenServer to complete. You ask your question, but instead of just standing there waiting for the answer, you go off and do something else while the GenServer works on your request.
+You can ask the GenServer to "clean the room" whereas the entire time it is cleaning the room you go and play with some other toy. When it is done, the GenServer says, "The room is clean!" You didn't have to wait until the whole process was over you could do other entertaining things in the meantime!
+Key Point: In async functions, you send out the request and can do other things until you receive the answer.
+
+defmodule SimpleQueue do
+  use GenServer
+
+  ### GenServer API
+
+  @doc """
+  GenServer.init/1 callback
+  """
+  def init(state), do: {:ok, state}
+
+  @doc """
+  GenServer.handle_call/3 callback
+  """
+  def handle_call(:dequeue, _from, [value | state]) do
+    {:reply, value, state}
+  end
+
+  def handle_call(:dequeue, _from, []), do: {:reply, nil, []}
+
+  def handle_call(:queue, _from, state), do: {:reply, state, state}
+
+  @doc """
+  GenServer.handle_cast/2 callback
+  """
+  def handle_cast({:enqueue, value}, state) do
+    {:noreply, state ++ [value]} # Add the value to the queue without waiting for a response
+  end
+
+  ### Client API / Helper functions
+
+  def start_link(state \\ []) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+  end
+
+  def queue, do: GenServer.call(__MODULE__, :queue) # Call to get the current queue
+  def enqueue(value), do: GenServer.cast(__MODULE__, {:enqueue, value}) # Asynchronous enqueue request
+  def dequeue, do: GenServer.call(__MODULE__, :dequeue) # Call to remove a value from the queue
+end
+Key Points:
+handle_cast/2 processes an asynchronous request. It doesn’t reply, and it only updates the state.
+We use GenServer.cast to add a value to the queue without blocking the caller.
+
+Example Usage:
+
+SimpleQueue.start_link([1, 2, 3])
+SimpleQueue.queue     # Returns: [1, 2, 3]
+SimpleQueue.enqueue(20)  # Adds 20 to the queue without waiting
+SimpleQueue.queue     # Returns: [1, 2, 3, 20]
+
+Summary of Key Points:
+OTP Concurrency: Imagine many robots completing their work all at once, without messing up each other's work. OTP allows these robots to be organized.
+GenServer: The robot boss that organizes it and completes work. It is like a helper where he takes care of your requests and gives out the answers.
+Synchronous Functions: You request a question, wait for the answer, then get it. Just like waiting in line.
+Asynchronous Functions: You request a question and move on doing anything else, meanwhile, the answer returns back to you. Just like playing while your robot cleans the room.
+By using these technologies, Elixir makes many things happen at once without everything getting messy!
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+What are Supervisors in Elixir?
+Imagine you are in a huge toy store with hundreds of shelves. Each shelf holds dozens of toys. Imagine that one of the toys breaks. You wouldn't let it break and then let every other toy fall. In other words, you would fix it or replace it so everything will keep running nicely.
+
+Supervisors in Elixir are similar to store managers. They make sure that all the toys (or, in this case, processes) lined up along the shelves are running at all times. If a toy breaks down, the manager (the supervisor) will replace it with a new one so that the store will continue to function.
+
+What Does a Supervisor Do?
+
+A supervisor is a special process whose purpose is to:
+
+Monitor other processes (child processes).
+Automatically restart them if they fail or stop working.
+This is like a manager who is watching the workers, and if one of them gets tired or makes a mistake, the manager gives them a new task or starts them over.
+
+Configuration of Supervisors
+When you create a supervisor, you need to tell it:
+
+What child processes (tasks or workers) to monitor.
+What to do if one of the child processes breaks or stops working (this is called the strategy).
+Example Code:
+Here's how we create a supervisor in Elixir for our SimpleQueue process:
+
+defmodule SimpleQueue.Application do
+  use Application
+
+  def start(_type, _args) do
+    children = [
+      {SimpleQueue, [1, 2, 3]}  # Starting our SimpleQueue process with initial values
+    ]
+
+opts = [strategy: :one_for_one, name: SimpleQueue.Supervisor]
+ Supervisor.start_link(children, opts)  # Start the supervisor with the strategy
+end
+end
+Main points:
+The supervisor is started with a list of children (in this case, the SimpleQueue).
+The strategy :one_for_one means that if one child process crashes, only that process will be restarted.
+The supervisor will ensure that the SimpleQueue is always running. That is, the supervisor has support for automatically restarting the SimpleQueue if anything goes wrong.
+What If a Process Crashes?
+Consider what happens when the SimpleQueue crashes or fails. Because the supervisor is running, the SimpleQueue is automatically restarted. That is, even if something goes wrong, the system runs without problems.
+
+Failure Handling Strategies
+There are a few strategies a supervisor may use in order to handle failures of its child processes:
+
+:one_for_one: Restart only the failed child process.
+:one_for_all: Restart all children if one of them fails.
+:rest_for_one: Restart the failed process and all processes started after it.
+Child Specification
+The child specification directs the supervisor on how to manage the child processes like how to start them up, shut them down, and restart. This is essential for the supervisor to know how to handle the child processes once something goes wrong.
+
+For instance, with our SimpleQueue we may define how to start the child and what should be done if it crashes:
+
+def child_spec(opts) do
+  %{
+    id: SimpleQueue,
+start: {__MODULE__, :start_link, [opts]},  # How to start the SimpleQueue process
+    shutdown: 5000,  # Wait this long (5 seconds) before shutting it down
+    restart: :permanent,  # Always restart if it crashes
+    type: :worker  # It's a worker process
+  end
+end
+DynamicSupervisor
+Sometimes, we are not aware which child processes we need to start. Imagine, for example, when a new user logs in to a web application-we need to start a new process for them only. In such a scenario, we use DynamicSupervisor.
+
+DynamicSupervisor gives us an ability to start child processes on demand-that is, to add new processes as necessary.
+
+options = [
+  name: SimpleQueue.Supervisor,
+  strategy: :one_for_one
+]
+ 
+DynamicSupervisor.start_link(options)
+
+= DynamicSupervisor.start_child(SimpleQueue.Supervisor, SimpleQueue)
+This is useful when we don't know exactly how many processes we'll need to start at the beginning but might need to create them while the app is running.
+
+Task Supervisor
+A Task Supervisor is a specific type of supervisor for transient work, for example, to perform background work like the order processing or managing a message. It employs DynamicSupervisor under the hood but can manage short tasks which may automatically crash.
+This is how we could define a task supervisor:
+
+children = [
+  {Task.Supervisor, name: ExampleApp.TaskSupervisor, restart: :transient}
+]
+{:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
+Supervised Tasks
+Now that we have a Task Supervisor, we can start running tasks managed automatically (so if they crash, they will be reinitialized):
+
+{:ok, pid} = Task.Supervisor.start_child(ExampleApp.TaskSupervisor, fn -> background_work end)
+If background_work ever crashes or fails, Task Supervisor will automatically reinitialize it for us.
+
+Key Concepts Summary
+Supervisors: Special processes which monitor others and automatically restart them when they go bad. They make your app fault-tolerant.
+
+Child Processes: The processes that the supervisor is running. For instance, in our case, SimpleQueue is a child process of the supervisor.
+
+Strategies:
+
+:one_for_one Just restart the failed process.
+:one_for_all Restart all processes on failure.
+:rest_for_one Restart the failed process as well as those started after it.
+Dynamic Supervisor: A supervisor which enables to start child processes dynamically during runtime of an application, for example, at connection of new user.
+
+Task Supervisor An overseer for short-lived tasks, such as jobs that run in the background and might fail but should reboot automatically.
+
+With supervisors, your application will continue to run even though parts of it will fail because Elixir will magically have this manager fix things when they break; you need not worry about it.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1. Inter-node Communication
+Elixir has very robust support for distributed computation, using the Erlang VM (BEAM). A node is a copy of the Erlang runtime system-which allows execution of processes and it can communicate with other nodes. These nodes can be run on different machines, or on one machine. Each node has a name.
+
+Starting Nodes
+To begin an Elixir node, we open an iex session and provide a name. For instance, we could start a node named alex@localhost: in one terminal.
+ 
+iex --sname alex@localhost
+In another terminal, we can start a node named kate@localhost:
+ 
+iex --sname kate@localhost
+Here the --sname sets the short name of the node. In a production environment, or on multiple machines, you will use --name instead.
+
+Now we have two nodes: alex@localhost and kate@localhost. Those nodes can talk to each other.
+
+2. Messaging between Nodes
+The moment we create more than one node, they can send messages to each other. One of the most straightforward operations to achieve this is Node.spawn_link/2.
+
+Working with Node.spawn_link/2
+This function allows us to call a function on a different node from the present node within an iex session. So, we will call a function on the kate@localhost node from the alex@localhost node.
+
+Let's define a module Kate on the kate@localhost node:
+
+iex(kate@localhost)> defmodule Kate do
+  .(kate@localhost)>   def say_name do
+  .(kate@localhost)>     IO.puts "Hi, my name is Kate"
+.(kate@localhost)>   end
+  .(kate@localhost)> end
+We can invoke the say_name function at the kate@localhost node from the alex@localhost node like this using Node.spawn_link/2:
+ elixir
+Copy code
+iex(alex@localhost)> Node.spawn_link(:kate@localhost, fn -> Kate.say_name end)
+Hi, my name is Kate
+#PID<10507.132.0>
+The "Hi, my name is Kate" message is now printed to the alex@localhost terminal, not kate@localhost. That's because the calling node alex@localhost is the group leader for I/O management.
+ 
+3. Handling Messages
+However, now assume that we wish the remote node to send a reply back to the calling node. This can be done using the send and receive mechanism in Elixir, how it behaves is not significantly different from how message passing in Erlang's actor model works.
+
+Example Sending and Receiving Messages
+Suppose alex@localhost shall query kate@localhost and get a reply back from her. On alex@localhost, we can send out a message and then wait for the reply to come back. Here is how you can do that:
+Create a process on the remote node kate@localhost waiting for a message.
+Send a message from alex@localhost and wait for the reply to come back.
+Here is the code for the remote process running on kate@localhost
+Using iex
+elixir
+Copy code
+iex(alex@localhost)> pid = Node.spawn_link :kate@localhost, fn -> CALLBACK
+=> send alex_node_pid, :sup?
+end
+end
+The kate@localhost node is listening for the message {:hi, alex_node_pid} and then sends the message :sup? back to the caller's PID, alex_node_pid.
+ 
+Now, from alex@localhost, we can send the message and receive the response:
+
+iex(alex@localhost)> send(pid, {:hi, self()})
+{:hi, #PID<0.106.0>}
+iex(alex@localhost)> flush()
+:sup?
+:ok
+The flush() function in iex reads messages from the message queue. Here, it returns the message :sup?, meaning the node responded on the other side.
+
+4. Nodes Across Different Networks
+If you run nodes on different machines, you must ensure that the nodes can talk securely to each other. In Erlang/Elixir it's achieved with a cookie. A cookie is the shared secret that nodes need to know each other to able to communicate.
+
+Sharing a Cookie
+
+to get two nodes to start with a shared cookie, you just launch the nodes with the same --cookie option like this:
+
+bash
+Copy
+iex --sname alex@localhost --cookie secret_token
+iex --sname kate@localhost --cookie secret_token
+Now both the nodes alex@localhost and kate@localhost are connected with each other as they share the same cookie. Now if two nodes don't share the same cookie, then the nodes can't communicate with each other.
+5. Distributing Jobs
+One of the most important features of Elixir is spawning and supervising tasks across distributed nodes. This allows us to make applications where workers or tasks can be dynamically added to nodes on the network.
+----------------
+Example: Chat Application
+Suppose you are building a simple chat app in which you let people communicate across distributed nodes. We will use Task Supervisors to manage the tasks that handle chat messages.
+Defining the Supervisor Application
+We start by defining the supervisor that will be in charge of all of the tasks that our application is set to run. In the chat application, we define a supervisor that oversees a Task.Supervisor.
+
+Here's how one sets up the supervisor:
+
+# lib/chat/application.ex
+defmodule Chat.Application do
+  use Application
+
+  def start(_type, _args) do
+    children = [
+      {Task.Supervisor, name: Chat.TaskSupervisor}
+
+opts = [strategy: :one_for_one, name: Chat.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
+end
+Here, we define a Task.Supervisor that will supervise tasks. Tasks are those things that may be in the form of processing any message or running a job in the background.
+6 Sending Messages with Supervised Tasks
+Task.Supervisor allows running tasks asynchronously across distributed nodes. This is how we can send a message along with a supervised task:
+
+# lib/chat.ex
+defmodule Chat do
+  def receive_message(message) do
+    IO.puts message
+  end
+
+  def send_message(recipient, message) do
+    spawn_task __MODULE__, :receive_message, recipient, [message]
+  end
+
+  defp spawn_task(module, fun, recipient, args) do
+    recipient
+    |> remote_supervisor()
+    |> Task.Supervisor.async(module, fun, args)
+    |> Task.await()
+  end
+
+  defp remote_supervisor(recipient) do
+    {Chat.TaskSupervisor, recipient}
+  end
+end
+In the function send_message/2, we create a task that runs receive_message/1 on the remote node-receiver. The task is supervised by Chat.TaskSupervisor. Which implies that if that task fails, it will restart.
+
+7. Distributed Code Testing
+Testing distributed applications can be challenging because of different nodes involved. Nevertheless, you can write tests and conditionally exclude those tests if the nodes are not available.
+
+Example Test
+A simple test for the send_message/2 function could look something like this:
+
+
+# test/chat_test.exs
+defmodule ChatTest do
+  use ExUnit.Case, async: true
+  import Chat
+
+  test "send_message" do
+    assert Chat.send_message(:moebi@localhost, "hi") == :ok
+  end
+end
+This test attempts to send a message to the moebi@localhost node. If that node is down, the test will fail. You can exclude such tests based on availability of nodes.
+
+Excluding Tests Based on Availability
+You can conditionally exclude distributed tests based on whether a node is alive:
+
+# test/test_helper.exs
+exclude =
+  if Node.alive?, do: [], else: [distributed: true]
+Latest
+ExUnit.start(exclude: exclude)
+If the node is not alive, tests tagged with the: distributed tag will be skipped.
+
+Conclusion
+Erlang's distributed capabilities in Elixir are fairly powerful, with the same capabilities to reliability and concurrency that Erlang offers. Using the Node module and Task.Supervisor, we can construct systems that process messages and tasks between nodes, and the nodes may either on the same machine or spread over a network.
+
+This lesson covers
+Communication between nodes using Node.spawn_link/2.
+It enables the message to be communicated between nodes, including both sending and receiving a message.
+Task supervision in a distributed system is also provided.
+It handles the remote tasks along with an implementation of ensuring them to be supervised.
+Testing the distributed code and handling node availability is enabled.
+These tools enable us to build quite high concurrent, fault-tolerant applications across distributed systems.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
