@@ -878,7 +878,7 @@ Independent Testing: Each application can have its set of tests making correctne
 Conclusion
 Truly, umbrella projects in Elixir can be incredibly powerful as this splits even large and complex codebases into smaller applications. It lets you understand the dependencies that come from deep within your code and scale up your project as it keeps growing.
 
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Introduction to @spec and @type in Elixir
 In Elixir, we find that, while writing code, we want the functions and types to be accessible for everyone, as well as work flawlessly. To this, @spec and @type help out! These are special annotations, or tags, available in Elixir that make a programmer describe the types of data their functions operate on, thus making the code understandable and free from errors.
@@ -994,3 +994,146 @@ In essence, here's quick overview of @spec and @type:
 @type allows us to introduce user-defined types so we don't have to write out labor-intensive data structures over and over again. Our code is cleaner, more understandable.
 @typedoc is used as documentation for the user-defined types since we would need @doc for functions.
 Together, with these tools, we can write Elixir code that is better, better understandable, less prone to errors, and more maintainable!
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Introduction to Behaviours in Elixir
+Elixir's behaviours allow you to specify a set of functions that a number of modules (or "workers") need to implement. In a way, the behaviour is like the implementation of some kind of contract these modules should respect. By using the behaviours, you ensure that all modules doing similar things implement the same functions making your code predictable and easier to manage. 
+
+Let's break this down with examples in simple words!
+
+Table of Contents
+What Are Behaviours?
+Defining a Behaviour
+Using Behaviours
+Why Use Behaviours?
+How Elixir Checks Behaviours
+Example Walkthrough
+1. What Are Behaviours?
+Suppose you are a football coach. You wish all your players to learn the same three skills: dribbling, passing, and shooting. You explain to each player that he needs to learn these skills; otherwise, he won't be allowed to play for your team. This is exactly what happens in Elixir with behaviors.
+
+Behaviors in Elixir allow a developer to:
+
+Define a class of functions that any module implementing the behaviour must implement.
+Ensure that the functions required are actually implemented in the module making the claim to the behaviour.
+To put it in not so many words, behaviours are like rules or "contracts" that help organize how different parts of your system communicate and work together.
+2. Defining a Behaviour
+First, we create a behavior. If we wanted to specify an action set for a worker module, a worker is something that does some task, such as downloading files or compressing images.
+
+We will define two important functions of the worker:
+
+init/1. This is the initialize function of a worker. 
+do/2 : This is what does the actual work like downloading a file or compressing files.
+These functions are defined as part of a behavior using the @callback directive. Here's how we define our worker's behaviour:
+\
+defmodule Example.Worker do
+  # Define the functions that must be implemented
+  @callback init(state :: term) :: {:ok, new_state :: term} | {:error, reason :: term}
+@callback perform(args :: term, state :: term) ::{:ok, result :: term, new_state :: term}
+              | {:error, reason :: term, new_state :: term}.
+end
+What it does:
+
+The @callback tells Elixir that these functions (init/1 and perform/2) must be implemented by any module that wants to use this behaviour.
+State and args are placeholders for the data the worker will work with.
+The return values are tuples ({:ok, .} or {:error, .}), that's a common way to return results or errors in Elixir.
+3. Using Behaviours
+Now that we have defined the behavior, let's create two different workers that use this behavior but do different things:
+
+Downloader Worker: This worker will download a file from the internet and save it locally.
+Compressor Worker: This worker will compress a list of files into a zip file.
+Downloader Worker
+defmodule Example.Downloader do
+  # Tell Elixir that this module follows the Example.Worker behaviour
+  @behaviour Example.Worker
+
+  # Implement the init/1 function
+def init(opts) do: {:ok, opts}
+
+  # Define the perform/2 function
+  def perform(url, opts) do
+    url
+    |> HTTPoison.get!()                # Download the file
+|> Map.fetch(:body)                 # Extract the body of the response
+    |> write_file(opts[:path])         # Save the file locally
+|> respond(opts)
+  end
+
+  # Helper functions
+  defp write_file(:error, _), do: {:error, :missing_body}
+  defp write_file({:ok, contents}, path) do
+    path
+    |> Path.expand()
+    |> File.write(contents)
+  end
+
+defp respond({:ok, opts}, do: {:ok, opts[:path], opts})
+  defp respond({:error, reason}, opts), do: {:error, reason, opts}
+end
+The Downloader module:
+ 
+We apply the @behaviour Example.Worker to indicate that this module is an implementation of the Example.Worker behaviour.
+The init/1 function takes options and should return them.
+The perform/2 function downloads a file.
+The function write_file/2 saves the downloaded file under the path in the options.
+Compressor Worker
+defmodule Example.Compressor do
+# tell Elixir that this module implements the Example.Worker behaviour
+  @behaviour Example.Worker
+
+  # Define the init/1 function
+  def init(opts), do: {:ok, opts}
+
+  # Define the perform/2 function
+  def perform(payload, opts) do
+    payload
+    |> compress                # Compress the files
+|> respond(opts)
+
+  # Helper function
+  defp compress({name, files}), do: :zip.create(name, files)
+
+  defp respond({:ok, path}, opts), do: {:ok, path, opts}
+  defp respond({:error, reason}, opts), do: {:error, reason, opts}
+end
+
+In the module Compressor,
+
+We also use @behaviour Example.Worker to ensure that this module follows exactly the same set of rules (init and perform functions).
+The perform/2 function compresses a list of files and returns the result.
+4. Why Behaviours?
+There are numerous advantages in using behaviours in Elixir:
+
+Consistency: By stating a behavior, we ensure that any modules which use the behavior implement a consistent set of functions. In this way, a module can present a coherent public API that's at least somewhat predictable, even for other modules.
+
+Flexibility: You are creating many different modules that perform a variety of tasks, like downloading files or compressing files. They all do this, however, in basically the same way. That makes it incredibly easy to replace one worker with another in your code without changing how you interact with them.
+
+Error Prevention: If a module declares to support a behaviour but doesn't implement all the necessary functions, Elixir will throw you a compile-time warning. This can detect errors much earlier, and makes sure your code is complete and consistent.
+
+5. Behaviour checking in Elixir
+If a module fails to implement an required function in a module of some behaviour, Elixir will warn you during compilation.
+
+For example, we can imagine that we forgot to implement the init/1 function in the Compressor module. Elixir will give us a warning like that:
+
+ lib/example/compressor.ex:1: warning: undefined behaviour function init/1 (for behaviour Example.Worker)
+Compiled lib/example/compressor.ex
+This warning reminds you that you haven't implemented one of the functions defined by the behaviour so you won't miss something important.
+
+6. Example Walkthrough
+We appear to have constructed a behavior (Example.Worker). There are two functions that every worker must have by definition:
+
+init/1 - Initializes the worker.
+perform/2 - Performs the work.
+Then we constructed two different types of workers, I have created two different types of workers
+
+Example.Downloader: Downloads a file.
+Example.Compressor: Compresses files.
+These two different workers, though implementing tasks that are quite different, follow the same behavior; they are obligated to implement the same functions for both, which are init/1 and perform/2. This makes the code easy to extend, easy to maintain and easier to use.
+
+Summary
+Behaviors are like interfaces for modules in Elixir: they define a set of functions that must be implemented.
+You can create your own behaviors using the @callback directive.
+Any module implementing a behavior must implement all the functions defined by the behavior.
+Elixir will automatically warn you if you forget to implement a function.
+Behaviors help you avoid madness, inconsistencies, flexibility problems, and other errors in your code.
+Behaviours are a powerful tool in structuring your code, so that modules can work together in a predictable way.
