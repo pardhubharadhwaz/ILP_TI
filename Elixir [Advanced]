@@ -1137,3 +1137,142 @@ Any module implementing a behavior must implement all the functions defined by t
 Elixir will automatically warn you if you forget to implement a function.
 Behaviors help you avoid madness, inconsistencies, flexibility problems, and other errors in your code.
 Behaviours are a powerful tool in structuring your code, so that modules can work together in a predictable way.
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Protocols in Elixir
+Protocols in Elixir are an incredibly versatile and strong feature through which one can have polymorphism achieved. Polymorphism is the ability of different data types to respond differently to the same function call. It is one of the greatest concepts in object-oriented programming, and Elixir provides the way of implementing this with protocols.
+
+Let's discuss protocols step by step, beginning with what they are and how we might implement and use them.
+
+Table of Contents
+What Are Protocols?
+Implementing a Protocol
+Defining and Using a New Protocol
+How Protocols Work with Types
+Protocols in Real-World Use Cases
+1. What Are Protocols?
+In Elixir, protocols are how one might define functions that could implement differently depending on the type of the data it is passed.
+
+That is, the very same function name could behave differently depending on the type of the data it is passed.
+
+Elixir's protocols are more flexible than traditional object-oriented polymorphism because, without changing the underlying types, we can extend existing functionality.
+
+As an example, Elixir includes the protocol String.Chars. What does this protocol do? The protocol is what makes the to_string/1 function exist that converts the various types to a string: to_string(5)      # => "5"to_string(12.4)   # => "12.4"to_string("foo")  # => "foo"In the above examples, to_string/1 is being invoked on integers, floats, and strings. What happens if we pass in a type that has no implementation for to_string/1?
+
+Let's try this with a tuple:
+ 
+to_string({:foo})
+This errors:
+ 
+** (Protocol.UndefinedError) protocol String.Chars not implemented for {:foo}
+This is because tuples don't implement the String.Chars protocol by default. We'll see in the next chapter how to add this protocol implementation to make tuples support this.
+ 
+2 Implementing a Protocol
+We need to implement the protocol for a custom data type in order to utilize it for making a protocol work with this type, as we did with our example involving a tuple.
+We can use the defimpl macro for this purpose.
+Let's implement the String.Chars protocol for tuples:
+```defimpl String.Chars, for: Tuple do
+  def to_string(tuple) do
+    interior =
+      tuple
+      |> Tuple.to_list()
+|> Enum.map(&Kernel.to_string/1)  # Convert each element to a string
+      |> Enum.join(", ")                # Join the elements with commas
+
+    "("#{#{interior}}""
+  end
+end
+With this definition, we're basically instructing Elixir to apply the rules in this defimpl whenever it encounters a tuple and calls the to_string/1 function. Here, we convert the tuple into a list, applying the to_string function to each element, and join them together with commas.
+
+Now let's try it out in IEx:
+ to_string({3.14, "apple", :pie})
+Output:
+ "{3.14, apple, pie}"
+We now see that we can extend the protocol of String.Chars for tuples, and so we are able to call to_string/1 on tuples without an error.
+
+3 Extending and Using a New Protocol
+Now that we know how to use existing protocols like String.Chars, let's see how we define our own protocol. Perhaps the most obvious use for protocols is when we want to apply the same function on several distinct types but wish for different behaviors depending on the type involved.
+Let's create a new protocol called AsAtom. We wish the purpose of this protocol would be to convert various data types into atoms in some way.
+
+Step 1: Define the Protocol
+In this step, we will make use of the defprotocol macro for defining a protocol. We will define a function to_atom/1 that should convert different types into atoms.
+\
+defprotocol AsAtom do
+  def to_atom(data)
+end
+Step 2: Implement the Protocol for Specific Types
+Once we have defined a protocol, we can implement it for specific types by means of the defimpl keyword. We will implement to_atom/1 for a few common Elixir types: Atom, BitString (strings), List, and Map.
+
+defimpl AsAtom, for: Atom do
+  def to_atom(atom), do: atom  # Atoms stay as they are
+end
+\*/
+defimpl AsAtom, for: BitString do
+  def to_atom(string), do: String.to_atom(string)  # Convert string to atom
+end
+\*/
+defimpl AsAtom, for: List do
+  def to_atom(list), do: list |> Enum.join("") |> String.to_atom()  # Convert list to atom
+end
+\*/
+defimpl AsAtom, for: Map do
+def to_atom(map), do: List.first(Map.keys(map))  # Cast map to atom based on its first key
+end
+Step 3: Use the Protocol
+So far we have defined our protocol and its implementations; let's get down to business and use it in code. We will use our new AsAtom protocol to convert various types to atoms.
+
+import AsAtom
+
+# Casting different types to atoms:
+IO.inspect(to_atom("string"))   # => :string
+IO.inspect(to_atom(:an_atom))   # => :an_atom
+IO.inspect(to_atom([1, 2]))
+     # => : "12"
+IO.inspect(to_atom(%{foo: "bar"}))  # => :foo
+Output:
+ string
+an_atom
+"12"
+:foo
+Explanation
+"string" becomes :string (a string to an atom).
+:an_atom doesn't change as it is already an atom.
+[1, 2] turns into the atom : "12" (list joined and made an atom).
+%{foo: "bar"} turns into :foo (the first key in the map).
+This makes clear why the AsAtom protocol allows converting different types to atoms in potentially different ways.
+
+4. Protocol Interaction with Types
+Elixir's protocols are dynamically dispatched based on the type of data passed to them. In other words, depending on what type of value Elixir will look at-the string, tuple, or map for example-it will use an appropriate implementation of the protocol that corresponds to that type. 
+
+It takes advantage of dynamic dispatching to apply the right function without any explicit checks or conditionals in your code. That's what makes protocols powerful, because they can exhibit polymorphism without the necessity of an inheritance or other complicated type hierarchies that you would often encounter in a true object-oriented language.
+
+Example: Protocol Dispatch
+Suppose you want to extend the AsAtom protocol to include integers. You simply add another defimpl block for integers :
+
+defimpl AsAtom, for: Integer do
+  def to_atom(integer), do: String.to_atom(Integer.to_string(integer))
+  # Convert integer into atom
+end
+Now, if you apply to_atom/1 to an integer it auto-converts it to an atom:
+to_atom(42)  # => :42
+This is the magic of protocols: you can add new types and their custom behavior by just defining new defimpl blocks without worrying about the rest of your code.
+5. Protocols in Real-World Use Cases
+Protocols are very helpful when you have a bunch of disparate types but want to establish common behavior across all of them. Some examples of when you would use protocols in Elixir include:
+Serialization: Let's say you have worked with several data types that you need to serialize-about converting data to JSON or some other format. Using protocols, you can specify how to serialize each type.
+Logging and Debugging
+Protocols can also be used for providing different string representations of data. So you might define a ToDebugString protocol that emits useful debug information for some types of data.
+
+C. Custom APIs
+When building an API that must accept different types of inputs but you want them all to respond to the same set of functions, protocols are ideal. For example, a system handling a variety of requests, such as a payment system for credit card, bank transfer, and PayPal payments.
+
+Conclusion
+Protocols in Elixir are a very powerful way to achieve polymorphism and extend functionality already in place, clean and flexible. You define a protocol and implement it for different types; you write functions that work over many different data types without having to write conditionals for each one. This makes Elixir programs more maintainable and extensible.
+
+Protocols can be used for:
+
+Functions you do not own, such as tuple and map.
+Defining custom behavior on your own types
+Taking your code to a new level of polymorphism and flexibility
+Protocols help Elixir keep its simplicity and concurrency model while giving the user the tools to extend the functionality of the language in runtime.
