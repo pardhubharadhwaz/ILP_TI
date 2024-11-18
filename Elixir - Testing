@@ -1,0 +1,161 @@
+ExUnit
+What's ExUnit?
+ExUnit is Elixir's built-in testing framework. It helps develop tests for the code, to get everything right. More like a quality check of the software, by analogy, much in a manner that you might check with a toothpick if a cake is baked properly.
+
+When you run tests with ExUnit, it examines your code line by line, and if something is wrong, it will tell you exactly where.
+
+Example: You're writing some program that greets people with "Hello, world!". You could write a test to ensure that your greeting function works.
+
+elixir
+Copy code
+defmodule ExampleTest do
+  use ExUnit.Case
+
+  test "greets the world" do
+    assert Example.hello() == :world
+  end
+end
+What’s happening here?
+
+ExUnit.Case is used to tell Elixir that this module is a test case.
+test defines an individual test.
+The assert line checks if Example.hello() returns :world. If it doesn’t, the test fails.
+assert
+What does assert do?
+
+In testing, assert checks if something is true. If it’s true, everything is good. If it’s false, the test fails.
+
+Example: Let’s say we’re checking if 2 + 2 equals 4:
+
+elixir
+Copy code
+test "math works" do
+assert 2 + 2 == 4
+end
+This will pass if it is true. If we wrote assert 2 + 2 == 5, then it would fail because 2 + 2 doesn't equal 5.
+
+refute
+What does refuting do?
+
+refute works like assert, only it checks for things that should not be true. It's like saying, "I don't believe this is true, and if it is, I want the test to fail."
+
+Example: Suppose we have to be sure that 2 + 2 is not equal to 5:
+
+elixir
+Copy code
+test "math doesn't work incorrectly" do
+  refute 2 + 2 == 5
+end
+If 2 + 2 == 5 were a fact (which it's not), the test would fail.
+
+assert_raise
+What does assert_raise do?
+
+Sometimes we need to make sure that a certain error occurs when running some code. It is asserted with assert_raise that a certain error is raised.
+
+Example: Consider a function you call that should raise an error for division by zero:
+
+elixir
+Copy code
+test "raises an error when dividing by zero" do
+  assert_raise ArithmeticError, fn -> 1 / 0 end
+end
+ This test checks for the condition that division by zero raises an ArithmeticError.
+
+assert_received
+What does assert_received do?
+
+Elixir is built upon processes that send messages to each other. Text messages were more than enough as an analogy. assert_received checks if a message was received.
+
+Example: Suppose in a piece of your code you are sending a message. But you want to see whether that message is received.
+
+elixir
+Copy code
+defmodule SendingProcess do
+  def run(pid) do
+    send(pid, :ping)
+  end
+end
+defmodule TestReceive do
+  use ExUnit.Case
+
+  test "receives ping" do
+    SendingProcess.run(self())  # self() refers to the current process
+    assert_received :ping
+  end
+end
+end
+In this example, SendingProcess.run(self()). This will send a message :ping to the test process. Assert_received is checking that a :ping message was received.
+ 
+capture_io and capture_log
+So what do capture_io and capture_log do? 
+ 
+Quite often your code prints things out to the screen. This is the case in IO.puts. You might want to test that the right messages are coming out without affecting the original code. And that's where capture_io comes in. 
+ 
+Example:
+
+Suppose you want to verify that a program prints "Hello World":
+
+elixir
+Copy code
+defmodule OutputTest do
+  use ExUnit.Case
+  import ExUnit.CaptureIO
+
+  test "outputs Hello World" do
+    assert capture_io(fn -> IO.puts("Hello World") end) == "Hello World
+"
+  end
+end
+This test verifies that IO.puts("Hello World") prints exactly "Hello World" followed by a newline.
+
+Similarly, capture_log can be used to test log outputs.
+
+Test Setup
+What is test setup?
+
+Sometimes you need to do stuff before each test. For example, you might need to create a little amount of test data or connect to a database. This is called "setup".
+
+setup is run before each test.
+setup_all is run once before the whole test suite.
+Example:
+
+Suppose you have to set up a variable that is used in several tests:
+
+elixir
+Copy code
+defmodule ExampleTest do
+  use ExUnit.Case
+
+  setup_all do
+    {:ok, recipient: :world}
+end
+
+  test "greets", state do
+    assert Example.hello() == state[:recipient]
+  end
+end
+Here, setup_all creates a state (recipient: :world) that is common for all tests.
+
+Test Mocks
+What are mocks?
+
+Mocking is an object or function that simulates something to make it easier for you to test code. Sometimes you need to simulate parts of your code that interact with external systems, such as a database or an API.
+
+Example :
+
+Imagine you're testing a function that talks to a weather API. You want to simulate the response rather than hitting the real API:
+
+elixir
+Copy code
+defmodule WeatherTest do
+  use ExUnit.Case
+
+  test "fetches weather data" do
+    mock_weather = fn -> {:ok, "sunny"} end
+    assert mock_weather.() == {:ok, "sunny"}
+  end
+end
+Here the mock (mock_weather) is simulating what the real weather API would return.
+
+In summary, what ExUnit does is help us to write tests in order to check whether our code works. We can use assert on something, refute whether something is false, and have tools like capture_io to test the output. We can also set up your test data before the tests run and then use mocks that simulate real-world systems.
