@@ -159,3 +159,396 @@ end
 Here the mock (mock_weather) is simulating what the real weather API would return.
 
 In summary, what ExUnit does is help us to write tests in order to check whether our code works. We can use assert on something, refute whether something is false, and have tools like capture_io to test the output. We can also set up your test data before the tests run and then use mocks that simulate real-world systems.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Testing External Services in Elixir Using Bypass
+Bypass is one of the most helpful tools in Elixir. It helps to mock out HTTP requests in tests, so you do not make real network calls. In other words, it gives you an easy way to mock out server responses (successes, errors, etc.), so you can test how your application behaves under different conditions.
+
+Key Concepts
+What is Bypass?
+
+Bypass is an OTP application in Elixir, a mock HTTP server. It catches incoming HTTP requests and then responds to them with a set of responses. This allows you to do different sorts of tests - for example, checking how applications react to the fall of a service or server errors - without hitting real external services.
+Real life example: Suppose you are testing an application interacting with a weather API. Instead of hitting the actual HTTP requests to the weather service every time, you can use Bypass, which simulates both successful and error responses from the weather API.
+
+Using Bypass
+Goal: Test how an application interacts with external services without actually making requests to them.
+You create a mock server with Bypass, that returns hard-coded data to make the mock server mimic the external service behavior, for example - success, failure etc.
+Example (Pseudo code):
+
+defmodule MyApp.HealthCheck do
+  def ping(url) do
+    url
+    |> HTTPoison.get()
+    |> response()
+  end
+
+  defp response({:ok, %{status_code: 200, body: body}}), do: {:ok, body}
+  defp response({:error, %{reason: reason}}), do: {:error, reason}
+end
+Configuring Bypass in Tests
+
+Test Setup: You have to open Bypass and configure it for the test. You do this by opening a mock server before running tests.
+Example:
+
+def setup do
+  bypass = Bypass.open()
+  {:ok, bypass: bypass}
+end
+Testing a Successful Request (HTTP 200)
+
+
+Use Bypass.expect/2 to specify how the mock server will respond if it receives a request.
+Example:
+
+test "request with HTTP 200 response", %{bypass: bypass} do
+  Bypass.expect(bypass, fn conn ->
+Plug.Conn.resp(conn, 200, "pong")
+  end)
+
+  assert {:ok, "pong"} = MyApp.HealthCheck.ping("http://localhost:#{bypass.port}")
+end
+Testing Server Errors (HTTP 500)
+
+ Test a server error (HTTP 500) by changing the response in Bypass.expect/2.
+Example:
+
+test "request with HTTP 500 response", %{bypass: bypass} do
+  Bypass.expect(bypass, fn conn ->
+    Plug.Conn.resp(conn, 500, "Server Error")
+  end)
+
+  assert {:error, "HTTP Status 500"} = MyApp.HealthCheck.ping("http://localhost:#{bypass.port}")
+end
+Simulating Unplanned Outages
+
+If you need to test for an outage (e.g., the network is down), you may want to have Bypass.down/1 bring up the mock server down.
+Example:
+elixir
+Copy code
+test "request with unexpected outage", %{bypass: bypass} do
+  Bypass.down(bypass)
+
+  assert {:error, :econnrefused} = MyApp.HealthCheck.ping("http://localhost:#{bypass.port}")
+end
+Multiple External Hosts
+
+When your application connects to more than one external service, you may have more than one Bypass connection; each serving a different service, for example different ports.
+Example:
+
+test "multiple external hosts", %{bypass: bypass} do
+bypass_one = Bypass.open(port: 1234)
+  bypass_two = Bypass.open(port: 1337)
+
+  Bypass.expect(bypass_one, fn conn ->
+    Plug.Conn.resp(conn, 500, "Server Error")
+  end)
+  Bypass.expect(bypass_two, fn conn ->
+    Plug.Conn.resp(conn, 200, "pong")
+  end)
+
+  assert {:error, "HTTP Status 500"} = MyApp.HealthCheck.ping("http://localhost:1234")
+  assert {:ok, "pong"} = MyApp.HealthCheck.ping("http://localhost:1337")
+end
+Testing with GenServer and Scheduler
+
+For much more complex applications, you might use a GenServer to periodically check the health of multiple domains. You can then use bypass to simulate the responses for each domain and test how the GenServer handles them.
+Example GenServer Scheduler:
+
+defmodule MyApp.Scheduler do
+  use GenServer
+
+  def init(sites) do
+    Process.send_after(self(), :check, 1000)
+    {:ok, sites}
+  end
+
+  def handle_info(:check, sites) do
+    sites
+|> Enum.each(fn site ->
+      case MyApp.HealthCheck.ping(site) do
+        {:ok, body} -> IO.puts("Success: #{body}")
+        {:error, reason} -> IO.puts("Error: #{reason}")
+      end
+    end)
+    {:noreply, sites}
+  end
+end
+ Testing Multiple Bypass Servers
+
+For end-to-end testing, you may need to simulate multiple services. Start a number of Bypass instances on various ports to represent different external services and see if your scheduler or application interacts with them correctly.
+Example:
+
+test "multiple services are checked and results logged" do
+  bypass_one = Bypass.open(port: 1234)
+  bypass_two = Bypass.open(port: 1337)
+
+  Bypass.expect(bypass_one, fn conn ->
+    Plug.Conn.resp(conn, 500, "Server Error")
+  end)
+
+Bypass.expect(bypass_two, fn conn ->
+    Plug.Conn.resp(conn, 200, "pong")
+  end)
+
+  opts = [sites: ["http://localhost:1234", "http://localhost:1337"]]
+  {:ok, pid} = GenServer.start_link(MyApp.Scheduler, opts)
+  Process.sleep(1000)
+
+  # Verify logs (success or error)
+  assert_receive {:log, "Error: HTTP Status 500"}
+  assert_receive {:log, "Success: pong"}
+end
+Summary of Steps for Using Bypass in Elixir
+Add Bypass to Dependencies:
+
+{:bypass, "~> 2.0", only: :test}
+Set Up Bypass in Test:
+
+Launch Bypass in your test environment.
+Specify expected responses using Bypass.expect/2.
+Test Success and Failure Cases:
+
+Mock success responses for status 200.
+Mock errors, for example HTTP 500.
+Mock server down condition using Bypass.down/1
+Test Multiple Hosts:
+
+Test with different port numbers to simulate service on multiple external hosts
+Integrate Bypass with GenServer (Scheduler):
+
+Use Bypass in conjunction with GenServer to periodically call out and check the health of the external services.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Mox Library in Elixir - Overview and Usage
+Mox is a powerful library in Elixir that allows for creating concurrent mocks, helping you write effective and safe tests, particularly when dealing with external dependencies and functions that rely on external services. Mocks in testing help simulate external systems and behaviors so you can test your code in isolation.
+
+Here’s a breakdown of key concepts, usage, and examples:
+
+1. Writing Testable Code
+What's "testable code"?
+Testable code is code that can be easily controlled and verified during tests. One important technique to make code more testable is to separate concerns and inject dependencies instead of hard-coding them.
+
+Example of Hard-Coded Dependencies
+
+def get_username(username) do
+  HTTPoison.get("https://elixirschool.com/users/#{username}")
+end
+This function is tightly coupled with HTTPoison and cannot be tested in isolation easily. To test it, you'd have to actually perform an HTTP request. 
+Improving Testability Using Dependency Injection: Rather than hard-coding HTTPoison, we can pass it as an argument:
+
+
+def get_username(username, http_client) do
+  http_client.get("https://elixirschool.com/users/#{username}")
+end
+This enables us to test the function without actually hitting a real HTTP service. We can inject a mock HTTP client while testing.
+Using Application Config to Store Dependencies: Another way to make code more flexible is by storing the client module in your application's configuration:
+
+
+def get_username(username) do
+  http_client().get("https://elixirschool.com/users/#{username}")
+end
+
+defp http_client do
+  Application.get_env(:my_app, :http_client)
+end
+In config.exs you can also specify which HTTP client to use:
+elixir
+Copy code
+config :my_app, :http_client, HTTPoison
+This way you can easily change clients between environments for example in tests by using a mock client.
+2. Why You Shouldn't Modify Application Config Directly in Tests
+You can modify the application config at runtime using Application.put_env/4 but that has serious drawbacks:
+Risk of Shared State: The application configuration is global. Hence, changing it might conflict with the running other tests concurrently, hence leading to flaky tests.
+No Enforcement: You may create mocks that do not abide by the contract you expect (some functions are missing or arguments are incorrect).
+Code Pollution: This approach leads to a proliferation of mock modules in your code.
+3. Mox: The Solution
+Mox is a library made to guide you in creating mocks in a more systematic and dependable manner. Thus, it addresses all the problems mentioned above. It makes sure the mocks adhere to a contract and ensures that your tests are isolated and concurrent-safe.
+
+Installation: Add Mox as a dependency in mix.exs:
+
+
+defp deps do
+  [
+    {:mox, "~> 0.5.2", only: :test}
+  ]
+end
+Then run:
+
+bash
+Paste code
+mix deps.get
+Defining Mocks: You define mocks dynamically using Mox instead of creating a physical mock module in your code. You do this by using the Mox.defmock.
+```
+
+Mox.defmock(HTTPoison.BaseMock, for: HTTPoison.Base)
+This defines a mock module, HTTPoison.BaseMock, for the HTTPoison.Base behavior.
+
+Setup Mock in test_helper.exs
+```
+ExUnit.start()
+ 
+# Define mocks
+Mox.defmock(HTTPoison.BaseMock, for: HTTPoison.Base)
+ 
+# Set up application config for testing
+Application.put_env(:my_app, :http_client, HTTPoison.BaseMock)
+Using Mocks in Tests: From your tests, import Mox and then use expect to define the return values of functions that are called on your mock modules. This is how you tell Mox to expect a specific function call and return a predefined result.
+
+Example Test:
+
+defmodule MyAppTest do
+  use ExUnit.Case, async: true
+  import Mox
+
+  setup :verify_on_exit!  # Verifies mock expectations on test exit
+
+test ":ok on 200" do
+    expect(HTTPoison.BaseMock, :get, fn _ -> {:ok, "What a guy!"} end)
+    assert {:ok, _} = MyModule.get_username("twinkie")
+  end
+
+  test ":error on 404" do
+    expect(HTTPoison.BaseMock, :get, fn _ -> {:error, "Sorry!"} end)
+    assert {:error, _} = MyModule.get_username("does-not-exist")
+  end
+end
+expect/3 sets the expected behavior for the mock function (:get in this case).
+verify_on_exit! ensures every mock is properly verified so that no expectations are missed.
+4. Why Mox is Better
+No Global State: Mox ensures that each test is isolated, so one test cannot affect the other. You can safely run tests in parallel.
+Guaranteed Contracts: Mox ensures that your mocks implement the callbacks as you defined them in the behaviors; hence, it offers you guarantees about the shape and functionality of your mocks.
+No Clutter: Mocks are defined at runtime, so you don't have to worry about creating excess modules and cluttering up your code base with mock definitions.
+Flexible Mocking: Mox is really good at mocking functions with specific return values, verifying that the expected functions are called, and making test reliabilities in concurrent scenarios.
+5. Real-World Example
+Suppose you have a function get_username/1 which performs an HTTP request to retrieve a user profile. You wouldn't want a real HTTP request hitting any external services when testing it. Using Mox, you can mock the HTTP client to simulate both success and error scenarios.
+
+Success Scenario:
+
+expect(HTTPoison.BaseMock, :get, fn _ -> {:ok, "User profile data"} end)
+assert {:ok, "User profile data"} = MyApp.get_username("valid_user")
+Error Scenario:
+
+expect(HTTPoison.BaseMock, :get, fn _ -> {:error, "Not found"} end)
+assert {:error, "Not found"} = MyApp.get_username("invalid_user")
+6. Conclusion
+Mox lets you write concurrent mocks elegantly and safely in Elixir. By implementing enforced contracts and isolating tests from external dependencies, Mox allows you to write tests that are reliable and flexible. When Mox is combined with Dependency Injection and application configuration, this allows you to run tests smoothly, avoid flaky tests, and end up with cleaner code.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Mox Library in Elixir - Overview and Usage
+Mox is a powerful library in Elixir that allows for creating concurrent mocks, helping you write effective and safe tests, particularly when dealing with external dependencies and functions that rely on external services. Mocks in testing help simulate external systems and behaviors so you can test your code in isolation.
+
+Here’s a breakdown of key concepts, usage, and examples:
+
+1. Writing Testable Code
+What's "testable code"?
+Testable code is code that can be easily controlled and verified during tests. One important technique to make code more testable is to separate concerns and inject dependencies instead of hard-coding them.
+
+Example of Hard-Coded Dependencies
+
+def get_username(username) do
+  HTTPoison.get("https://elixirschool.com/users/#{username}")
+end
+This function is tightly coupled with HTTPoison and cannot be tested in isolation easily. To test it, you'd have to actually perform an HTTP request. 
+Improving Testability Using Dependency Injection: Rather than hard-coding HTTPoison, we can pass it as an argument:
+
+def get_username(username, http_client) do
+  http_client.get("https://elixirschool.com/users/#{username}")
+end
+This enables us to test the function without actually hitting a real HTTP service. We can inject a mock HTTP client while testing.
+Using Application Config to Store Dependencies: Another way to make code more flexible is by storing the client module in your application's configuration:
+
+def get_username(username) do
+  http_client().get("https://elixirschool.com/users/#{username}")
+end
+
+defp http_client do
+  Application.get_env(:my_app, :http_client)
+end
+In config.exs you can also specify which HTTP client to use:
+
+config :my_app, :http_client, HTTPoison
+This way you can easily change clients between environments for example in tests by using a mock client.
+2. Why You Shouldn't Modify Application Config Directly in Tests
+You can modify the application config at runtime using Application.put_env/4 but that has serious drawbacks:
+Risk of Shared State: The application configuration is global. Hence, changing it might conflict with the running other tests concurrently, hence leading to flaky tests.
+No Enforcement: You may create mocks that do not abide by the contract you expect (some functions are missing or arguments are incorrect).
+Code Pollution: This approach leads to a proliferation of mock modules in your code.
+3. Mox: The Solution
+Mox is a library made to guide you in creating mocks in a more systematic and dependable manner. Thus, it addresses all the problems mentioned above. It makes sure the mocks adhere to a contract and ensures that your tests are isolated and concurrent-safe.
+
+Installation: Add Mox as a dependency in mix.exs:
+
+
+defp deps do
+  [
+    {:mox, "~> 0.5.2", only: :test}
+  ]
+end
+Then run:
+
+bash
+
+mix deps.get
+Defining Mocks: You define mocks dynamically using Mox instead of creating a physical mock module in your code. You do this by using the Mox.defmock.
+```
+elixir
+Copy code
+Mox.defmock(HTTPoison.BaseMock, for: HTTPoison.Base)
+This defines a mock module, HTTPoison.BaseMock, for the HTTPoison.Base behavior.
+
+Setup Mock in test_helper.exs
+```
+
+ExUnit.start()
+ 
+# Define mocks
+Mox.defmock(HTTPoison.BaseMock, for: HTTPoison.Base)
+ 
+# Set up application config for testing
+Application.put_env(:my_app, :http_client, HTTPoison.BaseMock)
+Using Mocks in Tests: From your tests, import Mox and then use expect to define the return values of functions that are called on your mock modules. This is how you tell Mox to expect a specific function call and return a predefined result.
+
+Example Test:
+
+defmodule MyAppTest do
+  use ExUnit.Case, async: true
+  import Mox
+
+  setup :verify_on_exit!  # Verifies mock expectations on test exit
+
+test ":ok on 200" do
+    expect(HTTPoison.BaseMock, :get, fn _ -> {:ok, "What a guy!"} end)
+    assert {:ok, _} = MyModule.get_username("twinkie")
+  end
+
+  test ":error on 404" do
+    expect(HTTPoison.BaseMock, :get, fn _ -> {:error, "Sorry!"} end)
+    assert {:error, _} = MyModule.get_username("does-not-exist")
+  end
+end
+expect/3 sets the expected behavior for the mock function (:get in this case).
+verify_on_exit! ensures every mock is properly verified so that no expectations are missed.
+4. Why Mox is Better
+No Global State: Mox ensures that each test is isolated, so one test cannot affect the other. You can safely run tests in parallel.
+Guaranteed Contracts: Mox ensures that your mocks implement the callbacks as you defined them in the behaviors; hence, it offers you guarantees about the shape and functionality of your mocks.
+No Clutter: Mocks are defined at runtime, so you don't have to worry about creating excess modules and cluttering up your code base with mock definitions.
+Flexible Mocking: Mox is really good at mocking functions with specific return values, verifying that the expected functions are called, and making test reliabilities in concurrent scenarios.
+5. Real-World Example
+Suppose you have a function get_username/1 which performs an HTTP request to retrieve a user profile. You wouldn't want a real HTTP request hitting any external services when testing it. Using Mox, you can mock the HTTP client to simulate both success and error scenarios.
+
+Success Scenario:
+
+expect(HTTPoison.BaseMock, :get, fn _ -> {:ok, "User profile data"} end)
+assert {:ok, "User profile data"} = MyApp.get_username("valid_user")
+Error Scenario:
+
+expect(HTTPoison.BaseMock, :get, fn _ -> {:error, "Not found"} end)
+assert {:error, "Not found"} = MyApp.get_username("invalid_user")
+6. Conclusion
+Mox lets you write concurrent mocks elegantly and safely in Elixir. By implementing enforced contracts and isolating tests from external dependencies, Mox allows you to write tests that are reliable and flexible. When Mox is combined with Dependency Injection and application configuration, this allows you to run tests smoothly, avoid flaky tests, and end up with cleaner code.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
