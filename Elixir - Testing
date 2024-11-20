@@ -552,3 +552,261 @@ Mox lets you write concurrent mocks elegantly and safely in Elixir. By implement
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+StreamData for Property-Based Testing in Elixir
+Overview:
+StreamData is a powerful testing library for Elixir that allows you to do property-based testing-an alternative to example-based testing, like ExUnit. Property-based testing is when you describe properties or characteristics of your functions and then test them against randomly generated data. This way, the approach helps make sure that your code works in a range of conditions, particularly edge cases and otherwise peculiar inputs.
+
+Key Concepts:
+Property-Based Testing
+
+Instead of having to write lots of examples, you declare properties that must be satisfied by your function.
+StreamData will create dozens of random inputs for you and run your tests over and over again (100 by default).
+Why StreamData:
+
+Edge Cases: Protects edge cases that example-based testing can fail to remember.
+Efficient: StreamData automatically shrinks failing inputs to the smallest possible example that still makes the test fail, which really simplifies debugging.
+Stream Data has tests. Property-based tests are usually much smaller and much more comprehensive than tests written in the example-based style .
+Installation of StreamData
+Mix project is created if not already.
+Add StreamData as a test dependency in mix.exs
+elixir
+Copy code
+defp deps do
+  [{:stream_data, "~> x.y", only: :test}]
+end
+Replace x.y from the version of library documentation .
+Fetch the dependency by running the command :
+bash
+Copy code
+mix deps.get
+Working with StreamData
+We are going to discuss how StreamData can be used to test a simple utility function that duplicates strings, lists or tuples.
+
+1. Strings
+Imagine you want a function that repeats a string a set number of times. Here's an obvious attempt at a basic approach:
+
+
+
+defmodule Repeater do
+  def duplicate(string, times) when is_binary(string) do
+    String.duplicate(string, times)
+  end
+end
+Example-Based Test (ExUnit):
+elixir
+Copy code
+defmodule RepeaterTest do
+  use ExUnit.Case
+
+  describe "duplicate/2" do
+test "duplicates the string" do
+    assert "aaaa" == Repeater.duplicate("a", 4)
+  end
+end
+This minimal test only checks one case. What if the input string is empty or the times argument is zero?
+
+Property-Based Test (StreamData):
+
+Using StreamData for more demanding testing:
+
+
+
+defmodule RepeaterTest do
+  use ExUnit.Case
+  use ExUnitProperties
+
+  describe "duplicate/2" do
+property "makes a new string consisting of a repeated duplicate of the first argument that many times" do
+      verify all str <- string(:printable),
+                times <- integer(),
+                times >= 0
+new_string = Repeater.duplicate(str, times)
+ 
+         # Check length
+         assert String.length(new_string) == String.length(str) * times
+ 
+         # Check contents
+         assert Enum.all?(String.split(new_string, str), &(&1 == ""))
+end
+end
+Explanation:
+
+
+
+check all produces random values for the test.
+string(:printable) produces random printable strings.
+integer() produces random integers for the times argument, ensuring times >= 0.
+The property-based test checks that the function returns a string of the correct length and the string contains the original string repeated correctly.
+2. Lists
+The function should repeat the elements of a list. Here's one way you might do it:
+
+
+defmodule Repeater do
+def duplicate(list, 0) when is_list(list) do
+  []
+end
+
+def duplicate(list, times) when is_list(list) do
+  list ++ duplicate(list, times - 1)
+end
+end
+Property-Based Test for Lists:
+elixir
+Copy code
+defmodule RepeaterTest do
+  use ExUnit.Case
+  use ExUnitProperties
+
+  describe "duplicate/2" do
+    property "creates a new list with elements repeated a specified number of times" do
+check all list <- list_of(term()),
+                times <- integer(),
+                times >= 0 do
+        new_list = Repeater.duplicate(list, times)
+
+        # Check length
+assert length(new_list) == length(list) * times
+
+        # Check contents (no other elements besides the original list repeated)
+        if length(list) > 0 do
+          assert Enum.all?(Enum.chunk_every(new_list, length(list)), &(&1 == list))
+        end
+end
+end
+end
+end
+Explanation
+
+list_of(term()) returns lists with random data.
+The test verifies that the size of the new list is correct and that the old list occurs the correct number of times
+Enum.chunk_every/2 is used to divide the new list into chunks that should correspond to the old list.
+3. Tuples
+We will do the same thing for tuples: first, convert it to a list; duplicate the list; and then back to a tuple:
+
+
+module Repeater do
+  def duplicate(tuple, times) when is_tuple(tuple) do
+    tuple
+    |> Tuple.to_list()
+    |> Repeater.duplicate(times)
+    |> List.to_tuple()
+  end
+end
+Property-Based Test for Tuples:
+elixir
+Copy code
+defmodule RepeaterTest do
+  use ExUnit.Case
+  use ExUnitProperties
+
+describe "duplicate/2" do
+  property "creates a new tuple, with elements repeated a specified number of times" do
+    check all t <- tuple({term()}), 
+              times <- integer(), 
+              times >= 0 do
+result_1 =
+          t
+          |> Repeater.duplicate(times)
+          |> Tuple.to_list()
+
+      result_2 =
+          t
+|> Tuple.to_list()
+          |> Repeater.duplicate(times)
+
+        assert result_1 == result_2
+      end
+    end
+  end
+end
+Explanation:
+ 
+tuple({term()}) generates random tuples.
+This test verifies that calling duplicate/2 on the tuple by first converting a tuple to a list using duplicate/2, and then back to a tuple gives an equivalent result to calling duplicate/2 directly on the tuple.
+Summary
+Writing property-based tests with StreamData can help you ensure that your functions are indeed correct on a wide range of inputs. Here are the key takeaways:
+Add StreamData to your mix.exs and fetch the dependency.
+Property-Based Testing: Replace example-based tests with properties that should always be true for any input.
+StreamData Functions:
+string/2: Outputs random strings.
+integer/0: Outputs random integers.
+list_of/1: Outputs random lists.
+tuple/1: Outputs random tuples.
+Advantages: Test more concisely, cover edge cases, and are overall more testing than example-based tests.
+
+Final Code:
+
+defmodule Repeater do
+  def duplicate(string, times) when is_binary(string) do
+    String.duplicate(string, times)
+  end
+
+  def duplicate(list, 0) when is_list(list) do
+[]
+
+  def duplicate(list, times) when is_list(list) do
+    list ++ duplicate(list, times - 1)
+  end
+
+  def duplicate(tuple, times) when is_tuple(tuple) do
+    tuple
+    |> Tuple.to_list()
+    |> Repeater.duplicate(times)
+    |> List.to_tuple()
+  end
+end
+
+defmodule RepeaterTest do
+  use ExUnit.Case
+  use ExUnitProperties
+
+  describe "duplicate/2
+property "a new string with the first argument duplicated a specified number of times" do
+      assert all str <- string(:printable),
+                times <- integer(),
+                times >= 0 do
+new_string = Repeater.duplicate(str, times)
+
+        assert String.length(new_string) == String.length(str) * times
+        assert Enum.all?(String.split(new_string, str), &(&1 == ""))
+      end
+    end
+
+    property "creates a new list with elements repeated a specified number of times" do
+check all list <- list_of(term()),
+                times <- integer(),
+                times >= 0 do
+        new_list = Repeater.duplicate(list, times)
+
+assert length(new_list) == length(list) * times
+        if length(list) > 0 do
+          assert Enum.all?(Enum.chunk_every(new_list, length(list)), &(&1 == list))
+        end
+      end
+    end
+
+property "creates a new tuple with elements repeated a specified number of times" do
+  check all t <- tuple({term()}), 
+                times <- integer(), 
+                times >= 0 do
+result_1 =
+          t
+          |> Repeater.duplicate(times)
+          |> Tuple.to_list()
+
+      result_2 =
+          t
+|> Tuple.to_list()
+        |> Repeater.duplicate(times)
+
+        assert result_1 == result_2
+      end
+    end
+  end
+end
+Run your tests with:
+
+bash
+mix test
+
+Property-based testing with StreamData offers a rather strong and efficient way of testing your code by generating as much diversification in inputs as possible, and checking that your functions satisfy certain properties or invariants.
