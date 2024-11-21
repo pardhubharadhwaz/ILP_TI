@@ -1,0 +1,467 @@
+GenStage Overview
+GenStage is a powerful abstraction in Elixir for managing data pipelines with back-pressure. It allows building scalable concurrent applications where the data flows through various stages in a controlled manner. Producer, consumer, or even producer-consumer is what each stage can be.
+ 
+Key Concepts
+Producer: Generates data and waits for demand from consumers.
+Producer-Consumer: It acts as both a producer and a consumer. It takes data from producers in the upstream and then passes data downstream to consumers.
+Consumer: It consumes data, performs some computation but does not produce any data that others can consume.
+These stages would act to control back-pressure so that producers do not overrun consumers.
+Example: Building a GenStage Pipeline
+Create a simple pipeline whereby a producer emits numbers, a producer-consumer filters out odd numbers and a consumer shows the remaining even numbers.
+
+Steps to Create the Application
+1. Producer: Outputs numbers from a specified value.
+Code (Producer):
+ bloc
+
+defmodule GenstageExample.Producer do
+  use GenStage
+
+  def start_link(initial \\ 0) do
+    GenStage.start_link(__MODULE__, initial, name: __MODULE__)
+  end
+
+  def init(counter), do: {:producer, counter}
+
+  def handle_demand(demand, state) do
+    events = Enum.to_list(state.(state + demand - 1))
+    {:noreply, events, state + demand}
+  end
+end
+init/1 initiates the producer state (starting number).
+handle_demand/2 deals with demands from consumers by producing numbers.
+2. Producer-Consumer: Filters out odd numbers and lets even numbers pass on.
+Code (Producer-Consumer):
+ 
+
+defmodule GenstageExample.ProducerConsumer do
+  use GenStage
+  require Integer
+
+  def start_link(_initial) do
+    GenStage.start_link(__MODULE__, :state_doesnt_matter, name: __MODULE__)
+  end
+
+  def init(state) do
+    {:producer_consumer, state, subscribe_to: [GenstageExample.Producer]}
+  end
+
+  def handle_events(events, _from, state)
+numbers = Enum.filter(events, &Integer.is_even/1)
+  {:noreply, numbers, state}
+end
+end
+handle_events/3 manages incoming events, removes odd numbers, and prepares the list of even numbers for consumers.
+3. Consumer: Shows received even numbers.
+Code (Consumer):
+
+defmodule GenstageExample.Consumer do
+  use GenStage
+
+  def start_link(_initial) do
+    GenStage.start_link(__MODULE__, :state_doesnt_matter)
+  end
+
+  def init(state) do
+    {:consumer, state, subscribe_to: [GenstageExample.ProducerConsumer]}
+  end
+
+def handle_events(events, _from, state) do
+    for event <- events do
+      IO.inspect({self(), event, state})
+    end
+    {:noreply, [], state}
+  end
+end
+handle_events/2 prints out the even numbers it receives.
+4. Supervisor: Structures the application's processes.
+Code (Application):
+esto
+Copy code
+def start(_type, _args) do
+  import Supervisor.Spec, warn: false
+
+  children = [
+    {GenstageExample.Producer, 0},
+{GenstageExample.ProducerConsumer, []},
+    {GenstageExample.Consumer, []}
+  ]
+
+
+  opts = [strategy: :one_for_one, name: GenstageExample.Supervisor]
+  Supervisor.start_link(children, opts)
+end
+This supervises the producer, producer-consumer, and consumer.
+Running the Application
+When you run the application by using mix run --no-halt, the output demonstrates that the even numbers are processed and printed in real-time showing how the stages interact with each other.
+
+Example Output
+plaintext
+{#PID<0.109.0>, 0, :state_doesnt_matter}
+{#PID<0.109.0>, 2, :state_doesnt_matter}
+{#PID<0.109.0>, 4, :state_doesnt_matter}
+.
+{#PID<0.109.0>, 229062, :state_doesnt_matter}
+Distributed Producers or Consumers
+You can scale up your system by adding more producers or consumers.
+
+Code (Multiple Consumers):
+
+children = [
+  {GenstageExample.Producer, 0},
+  {GenstageExample.ProducerConsumer, []},
+  %{
+    id: 1,
+    start: {GenstageExample.Consumer, :start_link, [[]]}
+  },
+  %{
+    id: 2,
+    start: {GenstageExample.Consumer, :start_link, [[]]}
+  },
+]
+When you run the application above, the consumers will process events concurrently.
+
+Use cases for GenStage
+Data Transformation Pipeline: Producers can emit data out of sources such as databases or messaging systems like Kafka. For example, producer-consumers can filter or transform this information. Consumers take care of further processing or storage
+Work Queues: GenStage is also good at modeling job queues. You have your producers generating tasks and consumers that process those tasks.
+Event Processing: GenStage supports event-driven architectures where data is flowing in real time, like logs, metrics, or user activity.
+
+Pseudocode Summary of GenStage
+Producer:
+
+def producer_handle_demand(demand) do
+  data = generate_data(demand)
+  send_data_to_consumer(data)
+end
+Producer-Consumer:
+
+def producer_consumer_handle_events(events) do
+  filtered_data = filter_odd_numbers(events)
+  send_filtered_data_to_consumer(filtered_data)
+end
+Consumer:
+
+def consumer_handle_events(events) do
+  display(events)
+end
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Overview of GenStage - Part 1: Introduction to GenStage
+GenStage is an Elixir module that handles and controls data pipelines. It is used to define stages in a process flow where data moves through several steps, each taken care of by other different processes like producers, consumers, and producer-consumers. The important feature of GenStage is its ability to handle the backpressure, thus preventing producers from overwhelming consumers by generating data at a faster rate than they can consume.
+
+GenStage
+ 
+Producer: Generates data when asked.
+Consumer: Processes the data that it receives.
+Producer-Consumer: It serves both as a producer, which is when data is emitted, and a consumer, which is processing received data.
+What is Back-pressure?
+Back-pressure is when a consumer can send a signal to the producer indicating to stop or slow down the producing rate of data from it as its processing, at the speed it is accepting incoming data, cannot take any more. This helps the system not crash.
+
+For instance, consider a system wherein the producer is generating numbers, and the consumer's role is to process them, like printing or storing in a database. This would mean that if the producer sends too many numbers, the consumer cannot keep up and suffers with memory overflow and lost data. Back-pressure works for such conditions, providing a signal from the consumer to the producer to slow down so that the consumer can process it at its own pace.
+
+In GenStage, demand is what controls the flow between producers and consumers. Consumers request data from producers, and producers only send as much data as requested. That saves them from data overload.
+
+GenStage Roles - Part 2: The Roles in GenStage
+In GenStage, the system relies on three main roles to allow data flow. These roles are defined in the GenStage specification:
+
+Producer:
+
+The producer produces data and makes it accessible to the consumers when they demand it.
+The producer does not consume or process the data; its only job is to produce data on demand.
+Producers wait for "demand" from consumers. If there is no demand, then a producer does nothing.
+Example: A simple producer can be a process that generates numbers in sequence, like 0, 1, 2, 3, .
+ 
+Producer-Consumer:
+ 
+This role incorporates both the producing and consuming capabilities.
+A producer-consumer can consume data from upstream producers (i.e., process the incoming data) and produce data for downstream consumers.
+Useful when you need a process to both generate and transform data before passing it along.
+Example: A producer-consumer could take in numbers from a producer, filter out the even numbers, and pass the even numbers to another consumer.
+ 
+
+Consumer:
+A consumer receives data from upstream producers (or producer-consumers) and processes it.
+Unlike producers and producer-consumers, consumers do not produce or emit data; they only consume it.
+Consumers can perform actions like printing data, processing it into another format, or storing it.
+Example: A consumer could receive numbers and simply print them to the console.
+
+Flow in GenStage:
+
+A producer generates data.
+A producer-consumer may filter or modify that data before passing it to a consumer.
+A consumer processes the data it receives.
+How It Works Together
+The typical GenStage application allows the stages to be chained in producer-to-producer-consumer-to-consumer with data flow among them.
+The demand-based back-pressure determines what is used to control producing back-pressure, as consumers convey how much data they can handle to the producers and then wait before that signal before sending more data.
+This way you get to manage workflows where different processes may operate at vastly different speeds without overwhelming any part of the system.
+
+Building a GenStage Application - Part 3: Producer
+Let's see how one would setup a simple pipeline of a gen stage. Consider the following:
+A producer generates a stream of numbers.
+A producer-consumer filters out odd numbers.
+A consumer prints the remaining even numbers.
+We start by creating a basic producer that emits numbers.
+Step 1. Creating the Producer
+Goal: The producer will produce a sequence of numbers starting from a given number, and when the consumer asks for data, it will produce the next set of numbers.
+
+Producer Code:
+
+elixir
+Copy code
+defmodule GenstageExample.Producer do
+  use GenStage
+
+  def start_link(initial \\ 0) do
+    GenStage.start_link(__MODULE__, initial, name: __MODULE__)
+  end
+
+  def init(counter), do: {:producer, counter}
+
+  def handle_demand(demand, state)
+events = Enum.to_list(state.(state + demand - 1))
+    {:noreply, events, state + demand}
+  end
+end
+Explanation
+
+start_link/1 starts the producer with an initial state (initial is the starting number, defaulted to 0).
+init/1 initializes the producer's state (the counter).
+handle_demand/2 defines how the producer responds to demand. It generates a list of numbers starting from the current state and sends them to the consumer.
+Flow Example: If the consumer requests 5 events, the producer will return 5 numbers starting with the current counter.
+
+GenStage Application - Part 4: Producer-Consumer
+Having created our producer to output a stream of numbers, let's construct the producer-consumer. This producer-consumer will act as an intermediary between the producer and the consumer. Its job will be to process the incoming data-filter out odd numbers-before passing downstream.
+2. Building the Producer-Consumer
+Objective: The producer-consumer will take data from the producer, filter out the odd number, and then pass the even number to the next stage-the consumer.
+
+Producer Consumer Code:
+
+elixir
+Copy code
+defmodule GenstageExample.ProducerConsumer do
+  use GenStage
+
+  require Integer
+
+  def start_link(_initial) do
+    GenStage.start_link(__MODULE__, :state_doesnt_matter, name: __MODULE__)
+  end
+
+  def init(state) do
+    {:producer_consumer, state, subscribe_to: [GenstageExample.Producer]}
+  end
+
+  def handle_events(events, _from, state)
+numbers =
+      events
+      |> Enum.filter(&Integer.is_even/1)
+
+    {:noreply, numbers, state}
+  end
+end
+Explanation:
+
+start_link/1: This starts the producer-consumer with a placeholder state (since the state is not critical in this example).
+init/1: We announce the process as a producer-consumer. The subscribe_to option subscribes the producer-consumer to the producer meaning that it will receive data emitted by the producer.
+handle_events/3: This function processes the incoming events. In this case, it filters the odd numbers out and passes only the even ones down to the next stage.
+Flow Example: If the producer sends [0, 1, 2, 3, 4, 5] to the producer-consumer, the producer-consumer will filter out [1, 3, 5] and pass [0, 2, 4] down stream .
+
+GenStage Application - Part 5: Consumer
+We will create the consumer last. The consumer is going to be the final step in our pipeline and will process data produced by and filtered through the earlier steps in the pipeline. To keep things simple, our consumer will simply print off the data it receives.
+
+3. Creating the Consumer
+Goal: The consumer will accept the even numbers as input from the producer-consumer and print them off.
+
+Consumer Code:
+elixir
+Copy code
+defmodule GenstageExample.Consumer do
+  use GenStage
+
+  def start_link(_initial)
+GenStage.start_link(__MODULE__, :state_doesnt_matter)
+  end
+
+  def init(state) do
+    {:consumer, state, subscribe_to: [GenstageExample.ProducerConsumer]}
+  end
+
+  def handle_events(events, _from, state) do
+    for event <- events do
+      IO.inspect({self(), event, state})
+    end
+
+    # As a consumer, we don't emit events, so we return an empty list
+end
+end
+Comment :
+ 
+start_link/1: This starts the consumer process.
+init/1: The consumer subscribes to the producer-consumer, which means it will obtain the filtered even numbers.
+handle_events/3: It handles events. Since it's a consumer, it doesn't emit any events; rather, it just prints every received event (IO.inspect/1). The second parameter of the returning tuple [] represents the fact that no further events are sent.
+Flow Example: If the producer-consumer sends [0, 2, 4], it will print each value:
+
+bash
+Copy code
+{#PID<0.109.0>, 0, :state_doesnt_matter}
+{#PID<0.109.0>, 2, :state_doesnt_matter}
+{#PID<0.109.0>, 4, :state_doesnt_matter}
+GenStage Application - Part 6: Wiring Everything Together
+We now have the producer, producer-consumer, and consumer. It is time to put everything together in an application supervision tree. A supervision tree will start and manage the processes (producer, producer-consumer, and consumer).
+
+4. Appending to the Supervision Tree
+Objective: We will indicate how to begin and control our workflows (the producer, producer-consumer, and consumer) under a supervisor.
+
+Supervision Tree Code: In lib/genstage_example/application.ex, we will append:
+
+elixir
+Copy code
+defmodule GenstageExample.Application do
+  use Application
+
+  def start(_type, _args) do
+    import Supervisor.Spec, warn: false
+
+    children = [
+      {GenstageExample.Producer, 0},
+GenstageExample.ProducerConsumer, []
+GenstageExample.Consumer, []
+end
+
+children = [
+  GenstageExample.Producer,
+  GenstageExample.ProducerConsumer,
+  GenstageExample.Consumer
+]
+opts = [
+  strategy: :one_for_one,
+  name: GenstageExample.Supervisor
+]
+Supervisor.start_link(children, opts)
+end
+end
+Text Explanation
+
+The children list represents the processes we wish to supervise: the producer, producer-consumer, and consumer.
+All of GenstageExample.Producer, GenstageExample.ProducerConsumer, and GenstageExample.Consumer are linked into the supervision tree.
+We employ the :one_for_one strategy, which means if any process crashes, only that specific process is going to be restarted.
+Running the Application
+After all settings are ready, you can run the application using the following command:
+bash
+Copy code
+mix run --no-halt
+This will start the processes and print the even numbers produced and consumed in the pipeline.
+Expected Output:
+When running the application, you expect something like this to be printed:
+bash
+Copy code
+{#PID<0.109.0>, 0, :state_doesnt_matter}
+{#PID<0.109.0>, 2, :state_doesnt_matter}
+{#PID<0.109.0>, 4, :state_doesnt_matter}
+.
+{#PID<0.109.0>, 229062, :state_doesnt_matter}
+{#PID<0.109.0>, 229064, :state_doesnt_matter}
+{#PID<0.109.0>, 229066, :state_doesnt_matter}
+You should see the even numbers being printed as expected, generated by the producer, filtered by the producer-consumer, and consumed by the consumer.
+
+GenStage with Multiple Producers or Consumers - Part 7: Scaling with Multiple Workers
+One of the powerful features of GenStage is its ability to scale with multiple producers or multiple consumers.
+
+5. Adding Multiple Consumers
+Let’s modify the application to have two consumers, allowing us to process events in parallel.
+
+Modification in Supervision Tree: In lib/genstage_example/application.ex, update the children list to add two consumers:
+elixir
+Copy code
+children = [
+  {GenstageExample.Producer, 0},
+  {GenstageExample.ProducerConsumer, []},
+  %{
+    id: 1,
+    start: {GenstageExample.Consumer, :start_link, [[]]}
+  },
+  %{
+    id: 2,
+    start: {GenstageExample.Consumer, :start_link, [[]]}
+  }
+]
+6. Expected Output with Multiple Consumers
+Now when you run the application, the events will be distributed between the two consumers. You'll see output like:
+
+bash
+Copy code
+{#PID<0.120.0>, 0, :state_doesnt_matter}
+{#PID<0.120.0>, 2, :state_doesnt_matter}
+{#PID<0.120.0>, 4, :state_doesnt_matter}
+.
+{#PID<0.121.0>, 229062, :state_doesnt_matter}
+{#PID<0.120.0>, 229064, :state_doesnt_matter}
+{#PID<0.120.0>, 229066, :state_doesnt_matter}
+In this case, two PIDs will be handling different sets of events, which therefore shows parallel processing.
+
+Use Cases for GenStage
+Now that we’ve covered the basics, let’s explore some real-world use cases where GenStage can be helpful:
+
+Data Transformation Pipeline:
+
+GenStage can be used to build data pipelines, such as transforming data from a database or processing streaming data (e.g., from Kafka). Multiple stages can filter, sort, or transform data before it's stored or acted upon.
+Work Queue:
+
+You can further distribute work to multiple workers (consumers), thus ensuring that each task is processed optimally without overloading any single worker, using GenStage.
+Event Processing:
+
+GenStage is perfectly suited for event processing in real-time, such as handling log data, processing incoming events from external sources, and performing actions like updating a database or sending notifications.
+This is proof of the flexibility of GenStage, allowing you to scale your systems in an effective manner with back-pressure handling and parallel processing.
+
+Key Concepts
+Producer:
+
+The producer is a source of data. It produces events or data and sends them to downstream processes (consumers or producer-consumers) when it receives demand.
+Producers own the responsibility of back-pressure by showing respect for the demand coming from downstream processes. They do not therefore flood consumers.
+Producer-Consumer:
+
+This is a hybrid role of a producer-consumer. It can be both a producer of data and consume data from upstream processes.
+A producer-consumer typically processes or transforms the data it receives from producers before passing it on to downstream consumers.
+In our example, the producer-consumer filters out odd numbers, only passing even numbers downstream.
+Consumer:
+
+A consumer is a sink that receives data from upstream producers or producer-consumers and processes it.
+Consumers generally don't emit data themselves. In our case, the consumer simply prints the data it receives.
+Back-Pressure:
+
+Back-pressure is a mechanism in GenStage. It makes sure that producers do not overwhelm consumers. If a consumer is not able to keep up, it triggers the producer to slow down and only send data when needed.
+Supervision Tree:
+Elixir ensures that each process is fault-tolerant by supervision tree. Each process (producer, producer-consumer, consumer) is supervised such that if something goes wrong, it is restarted automatically, so the application works as it should.
+Building the Pipeline
+Here's how the phases play together in our example:
+
+Producer: It produces a stream of numbers from some starting value. It reacts to demand from downstream processes (in this case, the producer-consumer).
+
+Producer-Consumer: It draws numbers from a producer, filters out the odd numbers, and passes down only the even numbers to the consumer.
+
+Consumer: Gets the even numbers from the producer-consumer and does something with them (in this case, it just prints them).
+
+Handling Multiple Producers or Consumers
+One of the nice features of GenStage is you can handle multiple producers or consumers. By changing the supervision tree, we can scale up the number of consumers and producers and distribute the load pretty much better.
+
+Multiple Consumers: Adding multiple consumer processes, we can distribute the incoming events among them. Using parallel processing and improving the rate of data flows proves to be a great use for dealing with higher volumes of data.
+Use Cases of GenStage
+GenStage can be used in a wide variety of scenarios:
+ 
+
+Data Pipelines:
+
+Use GenStage to create efficient data pipelines where data flows through different stages, responsible for the appropriate transformation - for instance, filtering, aggregation, or enriching of data.
+Work Queues :
+
+GenStage is excellent for creating work queues, where different consumers handle units of work produced by upstream producers. It can be used where tasks need to be processed in parallel, like processing images, jobs, and tasks.
+
+Event Processing:
+
+GenStage can be used to build real-time event processing systems. For instance, processing events from a log file, monitoring system, or incoming messages from a stream (like Kafka or RabbitMQ).
+Scaling with GenStage
+Multiple Workers: Adding more consumers allows the system to handle more events concurrently, ensuring better load distribution and faster processing.
+Fault Tolerance: The supervision tree allows for automatic restart of the crashed worker, if it is either a consumer or producer, thus keeping the overall system reliable.
+Conclusion
+With GenStage, we can then efficiently handle and process streams of data across various stages in Elixir. Powerful for managing back-pressure and ensuring smooth data flow even in large-scale systems or real-time event processing, GenStage will always provide you with a robust, fault-tolerant framework to manage the flow of data and workloads whether you are building your data pipeline, processes for work queues, or handling events.
