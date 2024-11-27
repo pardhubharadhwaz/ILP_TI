@@ -1,0 +1,576 @@
+Ecto is an official Elixir library used for working with databases. It provides tools for creating, modifying, and querying databases, and it works with multiple database systems such as PostgreSQL, MySQL, and SQLite. Here, we’ll cover the basics of Ecto using PostgreSQL as our database.
+
+Key Concepts
+Adapters: Ecto connects to databases via adapters. Each adapter corresponds to a specific database, like:
+
+PostgreSQL
+MySQL
+SQLite
+Real-world example: Just as different apps have different plugins to connect to various services (e.g., Twitter, Facebook), Ecto uses adapters to connect to different databases.
+
+Repository: A repository is the interface to our database. It's how we interact with the database in Elixir.
+
+Example: If Ecto is a library, the repository is like the bookshelf. We store and retrieve books (data) from the bookshelf (database).
+
+Migrations: Migrations are a way to change the database schema over time. Migrations can be thought of as an instruction to update the database.
+
+Real-world example: Imagine you're setting up a database for a blog. You might first create a table called "posts". Later you might add a table called "comments". Migrations help you do version control on these changes.
+
+Schemas: A schema defines the structure of a database table. In Elixir, schemas are modules that represent database tables.
+
+Example: A schema is like a template or blueprint for creating data (rows) in your table. It tells the database what kind of data it should expect for each field.
+
+How to Set Up Ecto Step-by-Step
+1. Creating a New Elixir Project
+First, create a new Elixir application that will use Ecto for database interaction:
+
+bash
+ 
+mix new friends --sup
+cd friends
+2. Adding Dependencies
+In the mix.exs file, add the dependencies required for Ecto and PostgreSQL (Postgrex is the adapter for PostgreSQL).
+
+ 
+ 
+defp deps do
+  [
+    {:ecto_sql, "~> 3.2"},
+    {:postgrex, "~> 0.15"}
+  ]
+end
+Run mix deps.get to fetch the dependencies.
+
+3. Setting Up the Repository
+A repository manages communication with your database. To set it up:
+
+bash
+ 
+mix ecto.gen.repo -r Friends.Repo
+This will generate a Friends.Repo module. It's responsible for connecting to the database, and it uses the PostgreSQL adapter.
+
+In config/config.exs, configure your database credentials:
+
+ 
+ 
+config :friends, Friends.Repo,
+  database: "friends_repo",
+  username: "postgres",
+  password: "",
+  hostname: "localhost"
+Real-world example: This is like setting up your login credentials for an online service.
+
+4. Creating the Database
+After configuring the repository, you can create the database by running:
+
+bash
+ 
+mix ecto.create
+5. Migrations
+Now we need to create tables in our database. Let’s add a people table to store information about individuals.
+
+To generate a migration:
+
+bash
+ 
+mix ecto.gen.migration create_people
+This will generate a migration file in the priv/repo/migrations directory. Modify the migration to create the people table with name and age fields:
+
+ 
+ 
+defmodule Friends.Repo.Migrations.CreatePeople do
+  use Ecto.Migration
+
+def change do
+    create table(:people) do
+      add :name, :string, null: false
+      add :age, :integer, default: 0
+    end
+  end
+end
+Run the migration
+You can do this with the following command:
+
+bash
+ 
+mix ecto.migrate
+Real-world example: Creating the table is just the same as creating the skeleton of a new table in a spreadsheet, where each column would represent a field like name and age.
+
+6. Defining the Schema
+Define a schema that maps to the people table.
+
+In lib/friends/person.ex:
+
+ 
+ 
+defmodule Friends.Person do
+  use Ecto.Schema
+
+  schema "people" do
+    field :name, :string
+    field :age, :integer, default: 0
+  end
+end
+This schema defines the shape of the people table, and we can interact with it as if it were an Elixir struct.
+
+7. Interacting with Schemas
+In the IEx shell, you may interact with the People schema:
+
+ 
+ Paste code
+%Friends.Person{}
+# %Friends.Person{age: 0, name: nil}
+ Create a new Person:
+
+ 
+ Paste code
+person = %Friends.Person{name: "Tom", age: 11}
+# %Friends.Person{age: 11, name: "Tom"}
+You can update the struct like a regular Elixir map:
+
+ 
+ Paste code
+person = %{person | age: 18}
+# %Friends.Person{age: 18, name: "Tom"}
+Real-world example: Interacting with the schema is like filling out a form with fields for name and age. You can update and retrieve the information from the form.
+
+8. Inserting Data into the Database
+To insert data into the database, use Repo.insert/1. First, define the Repo module in lib/friends/repo.ex:
+
+ 
+ 
+defmodule Friends.Repo do
+  use Ecto.Repo, otp_app: :friends, adapter: Ecto.Adapters.Postgres
+end
+Now, let's add a new person to the database:
+
+ 
+ 
+Friends.Repo.insert(%Friends.Person{name: "Jerry", age: 30})
+This will add a record to the people table in the PostgreSQL database.
+
+Important Things to Keep in Mind
+Ecto is an incredibly powerful tool for interacting with databases. You can create tables, insert records, and query data using Ecto.
+
+Migrations are how you manage changes to your database schema over time. You can safely add, remove, or modify tables and columns.
+
+Schemas map Elixir structs to database tables, so working with data is easy and structured.
+
+Repositories handle database connections and operations such as querying and inserting data.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+In Ecto, it is a structure used to follow and validate changes to a model of data, for instance, when inserting, updating, or deleting records. It is an integral requirement to ensure data integrity as it is persisted into a database.
+
+Table of Contents
+Introduction
+Creating a Changeset
+Validations
+Custom Validations
+Adding Changes Programmatically
+Conclusion
+1. Introduction to Creating a Changeset
+Generally a changeset is created when you use Ecto's cast/3 or change/2 functions. The cast/3 is useful because it allows the fields to be filtered based on what is allowed for modification.
+
+For instance let's say you have an underlying schema for a Person struct that could look something like this:
+
+
+#lib/my_app/person.ex
+
+defmodule MyApp.Person do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "people" do
+    field :name, :string
+    field :age, :integer, default: 0
+end
+end
+You can build a changeset like this:
+ 
+ 
+person = %MyApp.Person{name: "Alice", age: 30}
+changeset = Ecto.Changeset.cast(person, %{name: "Bob"}, [:name])
+In this example, the cast/3 function accepts the original data, a map of changes, and a list of allowed fields. Only the :name field will be updated in the changeset.
+2. Validations
+Ecto provides a couple of built-in functions to verify the data inside a changeset. These are crucial validations; they should ensure the given data has some specified qualities before the data gets to be written or updated to the database.
+
+The list of the most commonly applied validations includes:
+
+validate_required/2: A field is not equal to nil and is not blank.
+validate_length/3: A string field satisfies minimal and/or maximal length
+validate_format/3: A field matches some special regex format.
+Example of adding validations to a changeset:
+
+ 
+ 
+def changeset(person, params) do
+  person
+  |> cast(params, [:name, :age])
+  |> validate_required([:name])
+  |> validate_length(:name, min: 2)
+end
+If you try to create a person with an empty name or a name shorter than 2 characters, the changeset will not be valid and you will get an error.
+
+3. Custom Validations
+You can also make use of your own custom validation. For instance, when you would like to assure that the name of the person should be from any one of the predefined superheroes list. You could come up with a custom validation like below
+
+ 
+ 
+defmodule MyApp.Person do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  @superheroes ["Iron Man", "Spider-Man", "Thor"]
+
+  schema "people" do
+    field :name, :string
+    field :age, :integer, default: 0
+end
+
+  def validate_superhero_name(changeset) do
+    name = get_field(changeset, :name)
+
+    if name in @superheroes do
+      changeset
+    else
+      add_error(changeset, :name, "must be a superhero")
+    end
+  end
+
+  def changeset(person, params) do
+    person
+    |> cast(params, [:name, :age])
+|> validate_required([:name])
+    |> validate_superhero_name()
+  end
+end
+Here, the validate_superhero_name/1 function checks if the name is in the list of superheroes. If not, it adds a validation error.
+
+4. Making Changes Programmatically
+Sometimes you will want to make changes to a changeset programmatically. For instance, when a user registers without giving a name, you could set a default name such as "Anonymous".
+
+You can do this by utilizing the put_change/3 function:
+
+ 
+ 
+def set_default_name(changeset) do
+  name = get_field(changeset, :name)
+
+  if is_nil(name) do
+    put_change(changeset, :name, "Anonymous")
+  else
+    changeset
+  end
+end
+
+def registration_changeset(person, params) do
+  person
+  |> cast(params, [:name, :age])
+  |> set_default_name()
+end
+With this modification, in case name is nil, it will be assigned "Anonymous". This can be helpful when the name from the user is not provided in a registration form for example.
+5. Conclusion
+Ecto's changeset system is a powerful tool for handling data validation and modification in Elixir applications. It offers both built-in validation functions and the possibility of adding custom validation logic, so that only valid data is persisted to the database. With changesets, you can catch errors early and ensure data integrity, making your application more robust and reliable.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Ecto allows you to define relationships between schemas, which makes it easier to work with related data in a database. In this guide, we will walk through the different types of associations in Ecto and provide examples of how to define and work with them.
+Table of Contents:
+Set Up
+Types of Associations
+Belongs To / Has Many
+Belongs To / Has One
+Many to Many
+Saving Associated Data
+Querying Associated Data
+1. Set Up
+Before moving into associations, setup Ecto in your project just as demonstrated in previous lectures. You should already have Repo set up for database interaction.
+2. Types of Associations
+
+In Ecto, the following are common types of associations.
+Belongs To / Has Many
+
+Belongs To / Has One
+
+Many to Many
+Belongs To / Has Many
+This is a one-to-many relationship. For instance, one movie may have many characters, but a single character is associated with a movie.
+Has Many Migration
+
+Create a migration that generates a table for movies.
+```bash
+mix ecto.gen.migration create_movies
+```
+Inside the migration file, declare the table of the movie with some attributes
+``` 
+defmodule Friends.Repo.Migrations.CreateMovies do
+  use Ecto.Migration
+  def change do
+
+    create table(:movies) do
+      add :title, :string
+add :tagline, :string
+  end
+end
+end
+Has Many Schema
+In the Movie schema, use the has_many macro to define the relationship:
+ 
+
+ 
+defmodule Friends.Movie do
+  use Ecto.Schema
+  schema "movies" do
+
+    field :title, :string
+    field :tagline, :string
+    has_many :characters, Friends.Character
+  end
+end
+This means a movie can have many characters.
+Belongs To Migration
+
+Next, create the Character table that belongs to a movie:
+
+bash
+
+ 
+mix ecto.gen.migration create_characters
+Define the migration with a foreign key:
+
+ 
+
+ 
+defmodule Friends.Repo.Migrations.CreateCharacters do
+  use Ecto.Migration
+  def change do
+
+    create table(:characters) do
+      add :name, :string
+      add :movie_id, references(:movies)
+    end
+  end
+end
+Belongs To Schema
+In the Character schema, apply the belongs_to macro to declare the relationship:
+ 
+ 
+defmodule Friends.Character do
+  use Ecto.Schema
+  schema "characters" do
+
+    field :name, :string
+    belongs_to :movie, Friends.Movie
+  end
+end
+Now you can make use of movie.characters to obtain a movie's characters and character.movie for getting the associated movie to a character.
+Belongs To / Has One
+
+In this scenario, we have a movie and a distributor where a movie has one distributor and a distributor belongs to a movie.
+Has One Migration
+
+Generate a migration for distributors:
+bash
+
+ 
+mix ecto.gen.migration create_distributors
+Define the migration with a foreign key:
+ 
+
+ 
+defmodule Friends.Repo.Migrations.CreateDistributors do
+  use Ecto.Migration
+  def change do
+
+    create table(:distributors) do
+      add :name, :string
+add :movie_id, references(:movies)
+    end
+    create unique_index(:distributors, [:movie_id])
+  end
+end
+Has One Schema
+In the Movie schema, declare a has_one relationship to the distributor:
+ 
+
+ 
+defmodule Friends.Movie do
+  use Ecto.Schema
+  schema "movies" do
+
+    field :title, :string
+    field :tagline, :string
+    has_many :characters, Friends.Character
+    has_one :distributor, Friends.Distributor
+  end
+end
+In the schema of Distributor, use the belongs_to macro:
+ 
+
+ 
+defmodule Friends.Distributor do
+  use Ecto.Schema
+  schema "distributors" do
+
+    field :name, :string
+    belongs_to :movie, Friends.Movie
+  end
+end
+Many to Many
+This is an association when two schemas can have lots of records related to them. For example, the movie has many actors while an actor can appear in the movie many times.
+Many to Many Migration
+
+First, create a migration for actors:
+bash
+
+ 
+mix ecto.gen.migration create_actors
+Define the migration for the actors table:
+  
+defmodule Friends.Repo.Migrations.CreateActors do
+  use Ecto.Migration
+  def change do
+    create table(:actors) do
+      add :name, :string
+    end
+  end
+end
+Next, create the join table migration:
+bash
+
+mix ecto.gen.migration create_movies_actors
+Define the join table for movies_actors:
+
+defmodule Friends.Repo.Migrations.CreateMoviesActors do
+  use Ecto.Migration
+  def change do
+
+create table(:movies_actors, primary_key: false) do
+      add :movie_id, references(:movies)
+      add :actor_id, references(:actors)
+    end
+    create unique_index(:movies_actors, [:movie_id, :actor_id])
+  end
+end
+Many to Many Schema
+On the Movie schema, specify the relationship with many_to_many:
+ 
+ 
+defmodule Friends.Movie do
+  use Ecto.Schema
+  schema "movies" do
+
+    field :title, :string
+field :tagline, :string
+  has_many :characters, Friends.Character
+  has_one :distributor, Friends.Distributor
+  many_to_many :actors, Friends.Actor, join_through: "movies_actors"
+end
+end
+In the Actor schema, also use many_to_many:
+ 
+
+ 
+defmodule Friends.Actor do
+  use Ecto.Schema
+  schema "actors" do
+
+    field :name, :string
+    many_to_many :movies, Friends.Movie, join_through: "movies_actors"
+  end
+end
+3. Saving Associated Data
+Belongs To / Has Many:
+Use Ecto.build_assoc/3 to associate and insert records. For instance, inserting a movie and a character:
+
+ 
+
+ 
+movie = %Movie{title: "Inception", tagline: "Dream within a dream"}
+Repo.insert!(movie)
+character = Ecto.build_assoc(movie, :characters, %{name: "Dom Cobb"})
+ 
+Repo.insert!(character)
+This links the character to the movie using the foreign key movie_id.
+Many to Many:
+
+Make use of Ecto.Changeset.put_assoc/4 to link and update data in a many-to-many relationship:
+
+actor = %Actor{name: "Leonardo DiCaprio"}
+Repo.insert!(actor)
+movie = Repo.preload(movie, [:actors])
+
+movie_changeset = Ecto.Changeset.change(movie)
+movie_changeset = Ecto.Changeset.put_assoc(movie_changeset, :actors, [actor])
+Repo.update!(movie_changeset)
+
+This connects the actor with the film in the join table movies_actors.
+4. Searching related data
+Once you are saved with the data, you are going to be able to perform an unrelated record query with Repo.preload fetching the associated data:
+ 
+movie = Repo.get(Movie, 1) |> Repo.preload(:characters)
+movie.characters
+This brings the movie and its connected characters.
+
+Ecto associations prove to be a powerful tool for managing relationships between different database tables, letting you structure your data models and relationships in a way which makes interacting with them feel more natural and efficient. Then, saving and associating related data is quite intuitive using build_assoc/3 and put_assoc/4.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+using Elixir, focusing on how to query a database with the Ecto.Repo and Ecto.Query. Here's a summary of the key concepts covered:
+
+Fetching Records
+Fetching by ID: You can use Repo.get/3 to fetch a record by its primary key ID.
+
+Repo.get(Movie, 1)
+Fetching by Attribute: You can use Repo.get_by/3 to fetch a record based on a specific attribute or condition.
+
+Repo.get_by(Movie, title: "Ready Player One")
+Writing Queries with Ecto.Query
+Basic Query with from: Fetch all records of some kind using Ecto.Query.from/2.
+``` 
+query = from(Movie)
+Repo.all(query)
+ Bindingless Queries: You can select certain fields or apply filter conditions directly with a simple query without binding variables.
+``` 
+query = from(Movie, where: [title: "Ready Player One"], select: [:title, :tagline])
+Repo.all(query)
+Binding Queries: You can assign a variable, for instance, m to a query and then use it within the query for more flexibility.
+``` 
+query = from m in Movie, where: m.id < 2, select: m.title end Repo.all(query)
+Macros for Queries: The queries aren't keyword based; Ecto utilizes macros such as select/3, where/3, etc. to gain better composability especially if you're using the pipe operator (|>).
+
+Movie |> where([m], m.id < 2) |> select([m], {m.title}) |> Repo.all()
+Inserting Values into Queries: You can also insert values into your queries by using the ^ (pin) operator.
+
+title = "Ready Player One"
+query = from(m in Movie, where: m.title == ^title, select: m.tagline)
+Repo.all(query)
+Fetching First and Last Records
+You can fetch the first or last record using Ecto.Query.first/2 or Ecto.Query.last/2, followed by Repo.one/2 to execute the query.
+    
+Movie |> first() |> Repo.one()
+Preloading Associated Data
+Preloading: You can load associated data (e.g., related actors for a Movie) using Repo.preload/2 or during the query itself using preload.
+Preload with two separate queries:
+
+Repo.all(from m in Movie, preload: [:actors])
+Preloading with one query: You can use join and preload in a single query to avoid multiple database calls.
+
+query = from(m in Movie, join: a in assoc(m, :actors), preload: [actors: a])
+Repo.all(query)
+Preloading Fetched Records: If you have already fetched a record, you can preload its associations afterward.
+
+movie = Repo.get(Movie, 1)
+movie = Repo.preload(movie, :actors)
+Using Join Statements
+You can write queries with joins to combine data from different tables (schemas).
+
+query = from(m in Movie, join: c in Character, on: m.id == c.movie_id, where: c.name == "Wade Watts", select: {m.title, c.name})
+Repo.all(query)
+Using Subqueries: You can even use subqueries within join statements to filter or aggregate data from nested queries.
+
+movies = from(m in Movie, where: [stars: 5])
+from c in Character, join: m in subquery(movies), on: [id: c.movie_id], where: c.name == "Wade Watts", select: {m.title, c.name})
+Conclusion
+Ecto's powerful query DSL permits quite complex database interactions like filtering, selecting specific fields, joining tables, and preloading related data. You can build expressive queries meeting your application's needs using the Ecto.Query module. Database access in Elixir is, therefore, both efficient and flexible.
