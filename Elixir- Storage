@@ -1,0 +1,208 @@
+Erlang Term Storage (ETS)
+Overview
+
+ETS is kind of a super-fast, in-memory storage box in Erlang and Elixir.
+It helps store and retrieve lots of data really quickly and is built-in so we do not need to install anything extra.
+ETS is great for storing things like user information, session data, or caches where we need fast access.
+Key Concepts
+1. Tables in ETS
+ETS stores data in tables.
+A table has a name and can hold many pieces of data (like a big file cabinet with many folders).
+Tables belong to specific processes. If the process owning the table ends, the table is deleted.
+Example:
+
+:ets.new(:user_lookup, [:set, :protected])
+2. Table Types
+There are four types of tables you can use:
+
+set: One unique value per key.
+ordered_set: Same as set, but values are ordered.
+bag: Multiple values for one key.
+duplicate_bag: Multiple values per key, including duplicates.
+For example,
+
+:end
+:ets.new(:user_lookup, [:set, :protected])
+3. Access Control
+public: Anyone can read/write to the table.
+protected: Everyone can read, but only the owner can write (default).
+private: Only the owner can read/write.
+4. Inserting Data
+Data is inserted as a tuple with the first item being the key.
+For example: we insert a user along with his/her nickname and skills:
+Code
+end
+:ets.insert(:user_lookup, { "doomspork", "Sean", [ "Elixir", "Ruby", "Java"] })
+5. Retrieving Data
+Key Lookup: If you know the key, you can quickly find the data.
+Code Example:
+
+:ets.lookup(:user_lookup, "doomspork")
+# Result: [{ "doomspork", "Sean", ["Elixir", "Ruby", "Java"]}]
+6. Matches and Patterns
+Simple Matches: You can search for patterns in the data (like finding all users who speak Elixir).
+Code Example:
+
+:ets.match(:user_lookup, {: "$1", "Sean", :_})
+# Result: [[ "doomspork"]]
+Advanced Matches: More complex ways to query the data (like an SQL query).
+Code Example:
+
+:ets.select(:user_lookup, [{{: "$1", :_, : "$3"}, [], [: "$_"]}]
+# Result: [{"doomspork", "Sean", ["Elixir", "Ruby", "Java"]}]
+7. Deleting Data
+You can delete a specific record or even an entire table.
+Code Example (Deleting a record):
+
+
+:ets.delete(:user_lookup, "doomspork")
+Code Example (Deleting the table):
+
+
+:ets.delete(:user_lookup)
+Real-Life Example: Caching Data
+Let’s build a simple cache using ETS. Imagine you have a function that gets the current time, but you want to cache it to avoid calculating it again in the next few seconds.
+
+Cache stores results for a certain time (ttl = time-to-live).
+Check if the result is still fresh.
+Store the result in ETS if it's not cached or expired.
+Code Example (Cache Function):
+
+
+defmodule SimpleCache do
+  def get(mod, fun, args, opts \\ []) do
+    case lookup(mod, fun, args) do
+      nil -> cache_apply(mod, fun, args, opts)
+      result -> result
+end
+end
+
+  defp lookup(mod, fun, args) do
+    case :ets.lookup(:simple_cache, [mod, fun, args]) do
+      [result | _] -> check_freshness(result)
+      [] -> nil
+    end
+  end
+
+  defp check_freshness({mfa, result, expiration}) do
+    if expiration > :os.system_time(:seconds), do: result, else: nil
+  end
+
+defp cache_apply(mod, fun, args, opts) do
+    ttl = Keyword.get(opts, :ttl, 3600)
+    result = apply(mod, fun, args)
+    expiration = :os.system_time(:seconds) + ttl
+    :ets.insert(:simple_cache, {[mod, fun, args], result, expiration})
+    result
+  end
+end
+We use :ets.insert to store results in the cache.
+If the result is old (expired), we calculate it again.
+Disk-Based Storage with DETS
+ETS works in memory, but sometimes we need to store data permanently, so we use DETS (Disk-based Term Storage).
+The API is similar to ETS but stores data on disk.
+Code Example (Using DETS):
+
+{:ok, table} = :dets.open_file(:disk_storage, [type: :set])
+:dets.insert_new(table, { "doomspork", "Sean", ["Elixir", "Ruby", "Java"] })
+Summary of ETS Use Cases:
+Cache expensive operations.
+Store user data (like nicknames or profiles).
+Track counters (like how many times a function was called).
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1. Mnesia Overview
+Mnesia is a DBMS that is shipped with the Erlang Runtime System, which means it is natively compatible with Elixir. It is a relational and object-hybrid database that is built to be distributed. Mnesia is a good fit when you want to roll back transactions, store data across nodes, and have the flexibility to store data in RAM or on disk.
+
+2. When to Use Mnesia
+Use Mnesia if:
+
+You wish to rollback transactions.
+You desire simple syntax to read and write data.
+You want to store data distributed over several nodes.
+You prefer the ability to store your data in memory or disk.
+3. Schema Generation and Nodes
+In order to start using Mnesia, you first need to create a schema with the Mnesia.create_schema/1 function, passing along a node that should be associated to this schema:
+alias :mnesia, as: Mnesia
+Mnesia.create_schema([node()])
+A node in Erlang refers to a running Erlang VM instance that manages communications, garbage collection, and resource scheduling. The default name is nonode@nohost, but you can assign a specific name to your node for distributed systems, e.g., iex --name learner@elixirschool.com.
+4. Starting Mnesia
+After the schema was created, you start Mnesia with:
+elixir
+Copy code
+Mnesia.start()
+Mnesia initialization is asynchronous. If you need to wait until tables are initialized, use:
+elixir
+Copy code
+Mnesia.wait_for_tables([:person], 5000)
+5. Creating Tables
+You can create tables in Mnesia with the Mnesia.create_table/2 function. Here's an example where a Person table is created with three attributes: :id, :name, and :job. The first attribute (:id) is the primary key:
+
+elixir
+Copy code
+Mnesia.create_table(:person, [attributes: [:id, :name, :job]])
+6. The Dirty Way (Unprotected Access)
+Mnesia provides a direct, unprotected read/write interface known as the "dirty way." The reads and writes bypass the transaction system and are not transactional, meaning that some or all of the operation will not succeed. Example:
+
+elixir
+Copy code
+Mnesia.dirty_write({:person, 1, "Seymour Skinner", "Principal"})
+Mnesia.dirty_read({:person, 1})
+Avoid this for critical and/or fault-tolerant operations.
+7. Transactions
+Mnesia uses transactions, which are atomic for ensuring more robust database operations. You place read/writes inside a transaction function:
+elixir
+Copy code
+data_to_write = fn ->
+Mnesia.write({:person, 4, "Marge Simpson", "Home maker"})
+end
+Mnesia.transaction(data_to_write)
+This ensures that if anything fails during the transaction, no changes are committed.
+
+8. Using Indices
+You can add indices on non-key columns to speed up queries:
+
+elixir
+Copy code
+Mnesia.add_table_index(:person, :job)
+After adding an index, you can use it to retrieve data based on the indexed column:
+
+elixir
+Copy code
+Mnesia.transaction(fn ->
+  Mnesia.index_read(:person, "Principal", :job)
+end)
+9. Match and Select
+Mnesia supports high-level querying with match_object and select functions. To match rows where the name is "Marge Simpson":
+
+
+Mnesia.transaction(fn ->
+  Mnesia.match_object({:person, :_, "Marge Simpson", :_})
+end)
+Use select/2 to construct more complex queries with guard conditions:
+
+
+Mnesia.transaction(fn ->
+  Mnesia.select(:person,
+    [
+      {{:person, :"$1", :"$2", :"$3"}, [{:>, :"$1", 3}], [:"$$"]}}
+    ]
+  )
+end)
+10 Data Initialization and Migration
+When you update your application, Mnesia allows you to transform tables (add new columns, etc.). For instance, when you add an :age column to the Person table:
+
+Create the table with the new column.
+If the table already exists, use Mnesia.transform_table/3 to migrate the old data to the new schema.
+elixir
+Copy code
+case Mnesia.create_table(:person, [attributes: [:id, :name, :job, :age]]) do
+  {:atomic, :ok} ->
+    Mnesia.add_table_index(:person, :job)
+    Mnesia.add_table_index(:person, :age)
+{:aborted, {:already_exists, :person}} ->    
+    # Handle migration
+end
+Conclusion
+Mnesia is a powerful tool in Erlang and Elixir environments for distributed, real-time databases. It is even though simple in operations like dirty reads and writes but highly capable of managing transactions, distributed data storage, and schema migrations.
